@@ -34,11 +34,11 @@ void SocketUDP::Open(unsigned short port) {
 	// htons == host to network byte order
 	addr.sin_port = htons(port);
 
-	if (bind(_sockfd, (const sockaddr*) &addr, sizeof(sockaddr_in)) == -1)
+	if (::bind(_sockfd, (const sockaddr*) &addr, sizeof(sockaddr_in)) == -1)
 		throw runtime_error("failed to bind socket - "s + strerror(errno));
 
 	const int non_blocking = 1;
-	if (fcntl(_sockfd, F_SETFL, SOCK_NONBLOCK, non_blocking) == -1)
+	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK, non_blocking) == -1)
 		throw runtime_error("failed to set non-blocking - "s + strerror(errno));
 }
 
