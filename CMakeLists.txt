@@ -4,6 +4,7 @@ project(InvPend)
 option( INVPEND_ENABLE_SAMPLES "Compile samples if true." TRUE )
 option( INVPEND_ENABLE_CLIENT "Compile client if true." TRUE )
 option( INVPEND_ENABLE_SERVER "Compile server if true." TRUE )
+option( INVPEND_ENABLE_ARDUINO "Compile arduino projects if true" TRUE )
 
 set(INVPEND_INCLUDE_ONLY_DIR ${CMAKE_BINARY_DIR}/include)
 set(INVPEND_COMMON_LIBS iplib)
@@ -31,4 +32,8 @@ endif()
 
 if( INVPEND_ENABLE_SERVER )
 	add_subdirectory(server)
+endif()
+
+if( INVPEND_ENABLE_ARDUINO )
+	add_subdirectory(arduino)
 endif()

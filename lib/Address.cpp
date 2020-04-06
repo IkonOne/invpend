@@ -1,3 +1,5 @@
+#ifndef ARDUINO
+
 #include <iostream>
 
 #include "Address.h"
@@ -32,3 +34,5 @@ ostream &operator<<(ostream &out, const Address &rhs) {
 
 } // net
 } // iplib
+
+#endif // ARDUINO
