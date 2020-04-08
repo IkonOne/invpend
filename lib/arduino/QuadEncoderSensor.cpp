@@ -1,7 +1,7 @@
 #include "QuadEncoderSensor.h"
 
 // Core iplib libraries
-#include "MathHelpers.h"
+#include "../MathHelpers.h"
 
 /**
  * QuadEncoderSensor Class Definition

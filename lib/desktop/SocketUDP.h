@@ -1,5 +1,3 @@
-#ifndef ARDUINO
-
 #ifndef _SOCKETUDP_H_
 #define _SOCKETUDP_H_
 
@@ -28,5 +26,3 @@ class SocketUDP : public AbstractSocket {
 } // iplib
 
 #endif // _SOCKETUDP_H_
-
-#endif // ARDUINO

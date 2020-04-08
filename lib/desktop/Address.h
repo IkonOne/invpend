@@ -1,5 +1,3 @@
-#ifndef ARDUINO
-
 #ifndef ADDRESS_H
 #define ADDRESS_H
 
@@ -51,5 +49,3 @@ std::ostream &operator<<(std::ostream &out, const Address &rhs);
 } // iplib
 
 #endif // ADDRESS_H
-
-#endif // ARDUINO

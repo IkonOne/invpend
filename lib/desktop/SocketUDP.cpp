@@ -1,5 +1,3 @@
-#ifndef ARDUINO
-
 #include <errno.h>
 #include <exception>
 #include <iostream>
@@ -82,5 +80,3 @@ int SocketUDP::Receive(Address &src_out, void *data, int size) {
 
 } // net
 } // iplib
-
-#endif // ARDUINO

@@ -1,5 +1,5 @@
 #include "QuadEncoder.h"
-#include "QuadEncodersensor.h"
+#include "QuadEncoderSensor.h"
 
 #include <math.h>
 
