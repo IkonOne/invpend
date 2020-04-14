@@ -186,7 +186,6 @@ bool Peer<TConnection>::ReadPacket() {
     if (_rxBuilder.GetSize() < _rxHeader.dataSize)
         return false;
     
-    _readPktCS = _rxBuilder.GetChecksum();
     _readState++;
     return true;
 }
@@ -199,8 +198,10 @@ bool Peer<TConnection>::ValidateChecksum() {
     if (_connection.Receive(_readBuff, 1) < 1)
         return false;
  
+    _readPktCS = _rxBuilder.GetChecksum();
+
     #if !defined(ARDUINO) && defined(PACKET_DEBUG)
-    std::cout << "CRC  " << (unsigned int)_readBuff[0] << std::endl;
+    std::cout << "CRC  " << "read " << (unsigned int)_readBuff[0] << " actual " << (unsigned int)_readPktCS << std::endl;
     #endif
     
     if (_readBuff[0] != _readPktCS) {
