@@ -1,9 +1,14 @@
 #include "SerialConnection.h"
+#include "globals.h" // byte
+
+#ifndef ARDUINO
+#include <string>
+#endif
 
 using namespace std;
 
 namespace iplib {
-namespace serial {
+namespace net {
 
 SerialConnection::~SerialConnection() {
     Close();
@@ -14,21 +19,25 @@ SerialConnection::SerialConnection(const unsigned long baud) {
 }
 
 #ifndef ARDUINO
-    SerialConnection::SerialConnection(char *device, const unsigned long baud)
+    SerialConnection::SerialConnection(string device, const unsigned long baud)
         : SerialConnection(baud)
     {
         _impl.SetDevice(device);
     }
 
-    void SerialConnection::SetDevice(char *device) {
+    void SerialConnection::SetDevice(string device) {
         _impl.SetDevice(device);
     }
 
-    const char *SerialConnection::GetDevice() const {
+    string SerialConnection::GetDevice() const {
         return _impl.GetDevice();
     }
 
-    void SerialConnection::Open(char *device, const unsigned long baud) {
+    int SerialConnection::GetBytesAvailable() const {
+        return _impl.GetBytesAvailable();
+    }
+
+    void SerialConnection::Open(string device, const unsigned long baud) {
         _impl.SetDevice(device);
         Open(baud);
     }
@@ -56,13 +65,13 @@ void SerialConnection::Close() {
     _impl.Close();
 }
 
-int SerialConnection::Transmit(const char *data, int length) {
+int SerialConnection::Transmit(const ::byte *data, int length) {
     return _impl.Transmit(data, length);
 }
 
-int SerialConnection::Receive(char *buffer, int length) {
+int SerialConnection::Receive(::byte *buffer, int length) {
     return _impl.Receive(buffer, length);
 }
 
-}
-}
+}   //  net
+}   //  iplib

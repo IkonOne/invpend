@@ -1,5 +1,6 @@
 #include "QuadEncoder.h"
 #include "QuadEncoderSensor.h"
+#include "Arduino.h"
 
 #include <math.h>
 

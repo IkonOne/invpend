@@ -1,18 +1,23 @@
 #include "Arduino.h"
 
-// #include "src/iplib/arduino/SerialClient.h"
 #include "src/iplib/Protocol.h"
 #include "src/iplib/SerialConnection.h"
+#include "src/iplib/Peer.h"
+#include "src/iplib/PacketBuilder.h"
+#include "src/iplib/MathHelpers.h"
 
 using namespace iplib;
 
-serial::SerialConnection _connection;
-const char msg[] = "Hello Serial\n";
+net::Peer<net::SerialConnection> _peer(IPLIB_MAX_PACKET_SIZE, IPLIB_PROTOCOL_ID, isLittleEndian());
+net::syn_t syn;
 
 void setup() {
-    _connection.Open(serial::Baud::_115200);
+    _peer.GetConnection().Open(net::Baud::_115200);
+    syn.val = 123;
+    delay(1000);
 }
 
 void loop() {
-    _connection.Transmit(msg, sizeof(msg));
+    _peer.Transmit(&syn);
+    delay(500);
 }

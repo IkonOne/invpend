@@ -2,9 +2,10 @@
 #define SERIALCONNECTIONIMPL_H
 
 #include "../globals.h"
+#include "Arduino.h"
 
 namespace iplib {
-namespace serial {
+namespace net {
 
 class SerialConnectionImpl {
   public:
@@ -17,14 +18,14 @@ class SerialConnectionImpl {
     void Open();
     void Close();
 
-    int Transmit(const char *data, int length);
-    int Receive(char *buffer, int length);
+    int Transmit(const byte *data, int length);
+    int Receive(byte *buffer, int length);
 
   private:
     unsigned long _baud;
 };
 
-}   //  serial
+}   //  net
 }   //  iplib
 
 #endif // SERIALCONNECTIONIMPL_H

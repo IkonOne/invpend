@@ -1,6 +1,7 @@
 #ifndef QUADENCODER_H
 #define QUADENCODER_H
 
+#include "Arduino.h"
 #include "QuadEncoderSensor.h"
 
 class QuadEncoder {

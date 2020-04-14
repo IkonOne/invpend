@@ -17,12 +17,12 @@ ENDMACRO(STDPROJECT)
 
 MACRO(ARDUINOPROJECT PROJECT_NAME)
 	MESSAGE_CONFIGURING()
-	project(${PROJECT_NAME})
+	project(arduino_${PROJECT_NAME})
 
 	# FIXME: Ideally I would be using pre/post build commands
 	# HACK: SymLinking source files is a side effect of using arduino-cli
 	add_custom_target(
-		${PROJECT_NAME}
+		arduino_${PROJECT_NAME}
 		ALL
 		COMMAND rm -rf ${CMAKE_CURRENT_SOURCE_DIR}/src
 		COMMAND mkdir ${CMAKE_CURRENT_SOURCE_DIR}/src

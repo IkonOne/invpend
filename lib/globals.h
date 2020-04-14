@@ -1,27 +1,24 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+#ifndef BYTE_T
+#define BYTE_T
+#include <stdint.h>
+using byte = uint8_t;
+#endif
+
 namespace iplib {
 
-constexpr int SERIAL_BUFFER_SIZE = 256;
-constexpr int IPLIB_MAX_PACKET_SIZE = 128;
+constexpr unsigned int SERIAL_BUFFER_SIZE = 196;
+constexpr unsigned int IPLIB_MAX_PACKET_SIZE = 128;
+constexpr unsigned int IPLIB_PROTOCOL_ID = 0xFFA7;
 
-
-// Arduino Serial.begin(unsigned long baud)
-// POSIX csetispeed(tty, speed_t baud) : speed_t == unsigned long
-// Arduino doesn't easily support c++11 (or is it 14)
-// this should be 'enum class Baud : unsigned long { ... }'
-// POSIX termios.h uses defines '#define B9600 9600'
-namespace serial {
+namespace net {
 namespace Baud {
-    constexpr unsigned long _9600 = 9600;
-    constexpr unsigned long _57600 = 57600;
-    constexpr unsigned long _115200 = 115200;
-
-    constexpr unsigned long DEFAULT_RATE = _9600;
+    const unsigned long _9600 = 9600;
+    const unsigned long _115200 = 115200;
 }
 }
-
 
 }   //  iplib
 

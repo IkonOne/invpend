@@ -2,6 +2,7 @@
 #define QUADENCODERSENSOR_H
 
 #include <QTRSensors.h>
+#include "Arduino.h"
 
 class QuadEncoderSensor {
   public:

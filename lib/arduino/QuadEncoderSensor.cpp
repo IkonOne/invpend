@@ -1,4 +1,5 @@
 #include "QuadEncoderSensor.h"
+#include "Arduino.h"
 
 // Core iplib libraries
 #include "../MathHelpers.h"

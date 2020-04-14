@@ -3,7 +3,7 @@
 #include "SerialConnectionImpl.h"
 
 namespace iplib {
-namespace serial {
+namespace net {
 
 SerialConnectionImpl::~SerialConnectionImpl() {
     Close();
@@ -25,13 +25,13 @@ void SerialConnectionImpl::Close() {
     Serial.end();
 }
 
-int SerialConnectionImpl::Transmit(const char *data, int length) {
+int SerialConnectionImpl::Transmit(const byte *data, int length) {
     return Serial.write(data, length);
 }
 
-int SerialConnectionImpl::Receive(char *buffer, int length) {
+int SerialConnectionImpl::Receive(byte *buffer, int length) {
     return Serial.readBytes(buffer, length);
 }
 
-}   //  serial
+}   //  net
 }   //  iplib

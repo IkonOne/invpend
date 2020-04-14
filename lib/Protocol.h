@@ -1,26 +1,28 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
-#include "PacketBuffer.h"
+#include "PacketBuilder.h"
+#include <stdint.h>
 
 namespace iplib {
 namespace net {
 
-typedef unsigned int size_t;
-typedef unsigned char id_t;
-typedef unsigned int checksum_t;
-typedef unsigned short sequence_t;
+typedef uint16_t size_t;
+typedef uint8_t id_t;
+typedef uint16_t sequence_t;
+typedef uint16_t protocol_id_t;
 
-enum class PacketType : unsigned char {
-    NONE            = 0,
+size_t GetPacketSize(unsigned char packetType);
 
+namespace PacketType {
+    constexpr id_t NONE            = 0;
 
-    NULL_PACKET     = 5,
+    constexpr id_t NULL_PACKET     = 5;
 
     // three-way handshake
-    SYN             = 10,
-    SYN_ACK         = 11,
-    ACK             = 12,
+    constexpr id_t SYN             = 10;
+    constexpr id_t SYN_ACK         = 11;
+    constexpr id_t ACK             = 12;
 
     // Server -> Inverted Pendulum
     // reserved 50-99
@@ -29,8 +31,8 @@ enum class PacketType : unsigned char {
     // Inverted Pendulum -> Server
     // reserved 100-149
 
-    IPSRV_READY     = 100,
-    IPSRV_POS       = 101
+    constexpr id_t IPSRV_READY     = 100;
+    constexpr id_t IPSRV_POS       = 101;
 
 
     // Server -> Client
@@ -38,123 +40,110 @@ enum class PacketType : unsigned char {
 
     // Client -> Server
     // reserved 200-249
-};
+}  //  PacketType
 
 typedef struct packet_header {
-    id_t sid;    // sender id
-    PacketType type;   // type of packet sent
+    protocol_id_t pid;
+    id_t type;   // type of packet sent
+    size_t dataSize;
 
-    void Read(PacketBuffer &pb) {
-        pb.Read(&sid);
+    void ReadFrom(PacketBuilder &pb) {
+        pb.Read(&pid);
         pb.Read(&type);
+        pb.Read(&dataSize);
     }
 
-    void Write(PacketBuffer &pb) {
-        pb.Write(&sid);
+    void WriteTo(PacketBuilder &pb) {
+        pb.Write(&pid);
         pb.Write(&type);
+        pb.Write(&dataSize);
     }
 
-    checksum_t GetChecksum() const {
+    static constexpr size_t GetSize() {
         return
-            (checksum_t)sid +
-            (checksum_t)type;
-    }
-
-    size_t GetSize() const {
-        return
-            sizeof(sid) +
-            sizeof(type);
+            sizeof(pid) +
+            sizeof(type) +
+            sizeof(dataSize);
     }
 } packet_header_t;
 
-typedef struct packet_footer {
-    checksum_t checksum;  // checksum of data for validation
-    sequence_t sequence;  // where this packet is in the sequence
-
-    void Read(PacketBuffer &pb) {
-        pb.Read(&checksum);
-        pb.Read(&sequence);
-    }
-
-    void Write(PacketBuffer &pb) {
-        pb.Write(&checksum);
-        pb.Write(&sequence);
-    }
-
-    checksum_t GetChecksum() {
-        return
-            (checksum_t)checksum +
-            (checksum_t)sequence;
-    }
-
-    size_t GetSize() {
-        return
-            sizeof(checksum) +
-            sizeof(sequence);
-    }
-} packet_footer_t;
-
 // No idea what this is for
 typedef struct NULL_PACKET {
-    void Read(PacketBuffer &pb) {}
-    void Write(PacketBuffer &pb) {}
-    checksum_t GetChecksum() { return 0; }
-    size_t GetSize() { return 0; }
+    static constexpr unsigned char TYPE = PacketType::NULL_PACKET;
+
+    packet_header_t header;
+    char nothing;
+
+    void ReadFrom(PacketBuilder &pb) { pb.Read(&nothing); }
+    void WriteTo(PacketBuilder &pb) { pb.Write(&nothing); }
+    static constexpr size_t GetSize() { return sizeof(nothing); }
 } null_packet_t;
 
 typedef struct SYN {
-    unsigned int val;
+    static constexpr unsigned char TYPE = PacketType::SYN;
 
-    void Read(PacketBuffer &pb) { pb.Read(&val); }
-    void Write(PacketBuffer &pb) { pb.Write(&val); }
-    checksum_t GetChecksum() { return val; }
-    size_t GetSize() { return sizeof(val); }
+    packet_header_t header;
+    uint32_t val;
+
+    void ReadFrom(PacketBuilder &pb) { pb.Read(&val); }
+    void WriteTo(PacketBuilder &pb) { pb.Write(&val); }
+    static constexpr size_t GetSize() { return sizeof(val); }
 } syn_t;
 
 typedef struct SYN_ACK {
-    unsigned int val;
+    static constexpr unsigned char TYPE = PacketType::SYN_ACK;
 
-    void Read(PacketBuffer &pb) { pb.Read(&val); }
-    void Write(PacketBuffer &pb) { pb.Write(&val); }
-    checksum_t GetChecksum() { return val; }
-    size_t GetSize() { return sizeof(val); }
+    packet_header_t header;
+    uint32_t val;
+
+    void ReadFrom(PacketBuilder &pb) { pb.Read(&val); }
+    void WriteTo(PacketBuilder &pb) { pb.Write(&val); }
+    static constexpr size_t GetSize() { return sizeof(val); }
 } syn_ack_t;
 
 typedef struct ACK {
-    unsigned int val;
+    static constexpr unsigned char TYPE = PacketType::ACK;
 
-    void Read(PacketBuffer &pb) { pb.Read(&val); }
-    void Write(PacketBuffer &pb) { pb.Write(&val); }
-    checksum_t GetChecksum() { return val; }
-    size_t GetSize() { return sizeof(val); }
+    packet_header_t header;
+    uint32_t val;
+
+    void ReadFrom(PacketBuilder &pb) { pb.Read(&val); }
+    void WriteTo(PacketBuilder &pb) { pb.Write(&val); }
+    static constexpr size_t GetSize() { return sizeof(val); }
 } ack_t;
 
 // Inverted Pendulum
 
-typedef null_packet_t ipsrv_ready_t;
+typedef struct IPSRV_READY {
+    static constexpr unsigned char TYPE = PacketType::IPSRV_READY;
+
+    packet_header_t header;
+    int32_t ready;
+
+    void ReadFrom(PacketBuilder &pb) { pb.Read(&ready); }
+    void WriteTo(PacketBuilder &pb) { pb.Write(&ready); }
+    static constexpr size_t GetSize() { return sizeof(ready); }
+} ipsrv_ready_t;
 
 typedef struct IPSRV_POS {
+    static constexpr unsigned char TYPE = PacketType::IPSRV_POS;
+
+    packet_header_t header;
     float pend_theta;
     // float motor_pos;
 
-    void Read(PacketBuffer &pb) {
+    void ReadFrom(PacketBuilder &pb) {
         pb.Read(&pend_theta);
         // pb.Read(&motor_pos);
     }
 
-    void Write(PacketBuffer &pb) {
+    void WriteTo(PacketBuilder &pb) {
         pb.Write(&pend_theta);
         // pb.Write(&motor_pos);
     }
 
-    checksum_t GetChecksum() {
-        return
-            (checksum_t)pend_theta;
-    }
-
-    size_t GetSize() {
-        return
-            sizeof(pend_theta);
+    static constexpr size_t GetSize() {
+        return sizeof(pend_theta);
     }
 } ipsrv_pos_t ;
 
