@@ -17,9 +17,6 @@ message(STATUS "Done setting up ${INVPEND_INCLUDE_ONLY_DIR} ...")
 
 include(./CMakeIncludes/CMakeMacros.txt)
 
-add_compile_options(-Wall -Wextra -Wpedantic)
-add_compile_options(-g -O3 -std=c++17)
-
 add_subdirectory(thirdparty)
 add_subdirectory(lib)
 

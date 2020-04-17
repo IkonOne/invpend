@@ -4,16 +4,22 @@ MACRO(MESSAGE_CONFIGURING)
 	message(STATUS "Configuring ${CMAKE_CURRENT_BINARY_DIR}")
 ENDMACRO()
 
+MACRO(SETCOMPILEROPTIONS)
+	add_compile_options(-Wall -Wextra -Wpedantic)
+	add_compile_options(-g -O3 -std=c++17)
+ENDMACRO()
+
 #https://github.com/facebookarchive/RakNet/blob/master/CmakeIncludes/CmakeMacros.txt
 MACRO(STDPROJECT PROJECT_NAME)
 	MESSAGE_CONFIGURING()
 	project(${PROJECT_NAME})
+	SETCOMPILEROPTIONS()
 	file(GLOB ALL_SOURCE_FILES *.cpp)
 	file(GLOB ALL_HEADER_FILES *.h)
 	add_executable(${PROJECT_NAME} ${ALL_SOURCE_FILES} ${ALL_HEADER_FILES})
 	target_include_directories(${PROJECT_NAME} PUBLIC ${INVPEND_INCLUDE_ONLY_DIR} PUBLIC ./)
 	target_link_libraries(${PROJECT_NAME} ${INVPEND_COMMON_LIBS})
-ENDMACRO(STDPROJECT)
+ENDMACRO()
 
 MACRO(ARDUINOPROJECT PROJECT_NAME)
 	MESSAGE_CONFIGURING()
