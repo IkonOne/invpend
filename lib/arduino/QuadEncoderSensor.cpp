@@ -23,10 +23,10 @@ QuadEncoderSensor::QuadEncoderSensor(uint8_t emitterPin, uint8_t sensorPin0, uin
 }
 
 void QuadEncoderSensor::Calibrate(uint16_t duration_ms) {
-    // analogRead() takes about 0.1ms on avr
+    // analogRead() takes about 0.1ms on avg
     // 0.1ms * 1 sample per sensor * 2 sensors
-    // * 10 reads per calibrate() call = ~2ms per calibrate()
-    for (uint16_t i = 0; i < duration_ms / 2; ++i)
+    // * 10 reads per calibrate() call = ~20ms per calibrate()
+    for (uint16_t i = 0; i < duration_ms / 20; ++i)
         _qtr.calibrate();
 }
 

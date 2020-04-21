@@ -4,12 +4,30 @@
 #include "Arduino.h"
 #include "QuadEncoderSensor.h"
 
+/**
+ * [BEWARE] Comments are lies waiting to happen.
+ * 
+ * void setup() {
+ *  Calibrate() // Must be called first.
+ *  Initialize()
+ * }
+ * 
+ * void loop() {
+ *  Update()
+ * }
+ */
 class QuadEncoder {
   public:
     QuadEncoder() = delete;
     QuadEncoder(uint8_t emitterPin, uint8_t sensorPin0, uint8_t sensorPin1);
 
+    float GetTheta() const;
+    long GetNumLoops() const;
+    uint8_t GetQuadrants() const;
+    int8_t GetQuadrantDir() const;
+
     void Calibrate(int duration_ms);
+    void Initialize();
     void Update();
 
   private:

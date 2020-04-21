@@ -67,10 +67,31 @@ namespace arduino {
 
 QuadEncoder::QuadEncoder(uint8_t emitterPin, uint8_t sensorPin0, uint8_t sensorPin1)
     : _sensor(emitterPin, sensorPin0, sensorPin1)
-{}
+{
+    _sensor.SetMapRange(-1.0f, 1.0f);
+}
+
+float QuadEncoder::GetTheta() const { return _theta; }
+long QuadEncoder::GetNumLoops() const { return _num_loops; }
+uint8_t QuadEncoder::GetQuadrants() const { return _quadrant; }
+int8_t QuadEncoder::GetQuadrantDir() const { return _quadrant_dir; }
 
 void QuadEncoder::Calibrate(int duration_ms) {
     _sensor.Calibrate(duration_ms);
+}
+
+void QuadEncoder::Initialize() {
+    _theta = 0;
+    _num_loops = 0;
+
+    _sensor.Update();
+    float x = _sensor.ReadMappedValue(0);
+    float y = _sensor.ReadMappedValue(1);
+
+    _prev_theta = atan2(y, x);
+    _quadrant = _prev_quadrant = get_quadrant(_prev_theta);
+
+    _quadrant_dir = _prev_theta > 0 ? DIR_POS : DIR_NEG;
 }
 
 void QuadEncoder::Update() {
@@ -85,9 +106,9 @@ void QuadEncoder::Update() {
     if (_prev_quadrant != curr_quadrant) {
 
         if (_quadrant_dir != curr_dir) {
-            _quadrant &= _prev_quadrant;
+            _quadrant &= ~_prev_quadrant;
 
-            if ((_quadrant_dir == DIR_POS && _quadrant == QUADRANT_NONE && _prev_quadrant == QUADRANT_I && curr_quadrant == QUADRANT_IV) |
+            if ((_quadrant_dir == DIR_POS && _quadrant == QUADRANT_NONE && _prev_quadrant == QUADRANT_I && curr_quadrant == QUADRANT_IV) ||
                 (_quadrant_dir == DIR_NEG && _quadrant == QUADRANT_NONE && _prev_quadrant == QUADRANT_IV && curr_quadrant == QUADRANT_I))
             {
                 _quadrant_dir = curr_dir;
