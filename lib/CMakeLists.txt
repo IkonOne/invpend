@@ -7,5 +7,8 @@ file(GLOB INVPEND_ARDUINO_HEADER_FILES ${InvPend_SOURCE_DIR}/lib/*.h ${InvPend_S
 file(GLOB INVPEND_ARDUINO_SOURCE_FILES ${InvPend_SOURCE_DIR}/lib/*.cpp ${InvPend_SOURCE_DIR}/lib/arduino/*.cpp)
 
 SETCOMPILEROPTIONS()
+
 add_library(iplib STATIC ${INVPEND_DESKTOP_SOURCE_FILES})
+target_link_libraries(iplib imgui)
+
 target_include_directories(iplib PUBLIC ${InvPend_SOURCE_DIR}/lib ${InvPend_SOURCE_DIR}/lib/desktop)

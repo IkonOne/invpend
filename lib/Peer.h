@@ -15,12 +15,6 @@
 namespace iplib {
 namespace net {
 
-/**
- *  We use a preamble for specifically for serial communication.
- *  Since serial doesn't have a Transport layer, we use the preamble
- *  to signify the start of a packet.  That way we know
- *  we can discard anything until we receive the preamble.
- */
 template <typename TConnection>
 class Peer {
   public:
@@ -43,6 +37,7 @@ class Peer {
     }
 
     bool IsPacketReady();
+    id_t GetPacketType() { return _rxHeader.type; }
 
     template <typename TPacket>
     void Receive(TPacket &packet) {

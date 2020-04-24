@@ -17,7 +17,7 @@ namespace iplib {
 namespace net {
 
 SerialConnectionImpl::SerialConnectionImpl()
-    : _baud(net::Baud::_9600)
+    : _baud(net::Baud::_9600), _fd(-1)
 { }
 
 SerialConnectionImpl::~SerialConnectionImpl() {
@@ -62,10 +62,13 @@ void SerialConnectionImpl::Open() {
 }
 
 void SerialConnectionImpl::Close() {
+    if (_fd == -1)
+        return;
+
     ioctl(_fd, TIOCNXCL);
     if (close(_fd) < 0)
         throw new runtime_error("Error " + to_string(errno) + " from close: " + strerror(errno));
-    _fd = 0;
+    _fd = -1;
 }
 
 int SerialConnectionImpl::Transmit(const ::byte *data, int length) {
