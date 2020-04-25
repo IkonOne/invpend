@@ -93,6 +93,9 @@ void GuiWindow::Close() {
 void GuiWindow::BeginRender() {
     glfwPollEvents();
 
+    glClearColor(0.08f, 0.08f, 0.08f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -100,8 +103,6 @@ void GuiWindow::BeginRender() {
 
 void GuiWindow::EndRender() {
     ImGui::Render();
-    glClearColor(0.08f, 0.08f, 0.08f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
