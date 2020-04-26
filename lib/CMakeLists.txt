@@ -9,6 +9,6 @@ file(GLOB INVPEND_ARDUINO_SOURCE_FILES ${InvPend_SOURCE_DIR}/lib/*.cpp ${InvPend
 SETCOMPILEROPTIONS()
 
 add_library(iplib STATIC ${INVPEND_DESKTOP_SOURCE_FILES})
-target_link_libraries(iplib imgui)
+target_link_libraries(iplib imgui box2d)
 
 target_include_directories(iplib PUBLIC ${InvPend_SOURCE_DIR}/lib ${InvPend_SOURCE_DIR}/lib/desktop)

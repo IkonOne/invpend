@@ -5,6 +5,7 @@
 
 #include <imgui.h>
 #include <iplib/GuiWindow.h>
+#include <iplib/MathHelpers.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <box2d/b2_body.h>
@@ -22,23 +23,6 @@ using namespace iplib;
 
 gui::GuiWindow window(800, 600, "Pendulum Sim");
 
-struct pid_s {
-    float kp, ki, kd;
-    float setpoint;
-    float integral;
-    float prev_error;
-};
-
-float pid(pid_s &pid, float measured, float dt) {
-    // https://en.wikipedia.org/wiki/PID_controller#Pseudocode
-    float error = pid.setpoint - measured;
-    pid.integral = pid.integral + error * dt;
-    float d = (error - pid.prev_error) / dt;
-    pid.prev_error = error;
-
-    return pid.kp * error + pid.ki * pid.integral + pid.kd * d;
-}
-
 int main() {
     DebugDraw debugDraw;
     b2Vec2 gravity(0.0f, -9.81f);
@@ -48,11 +32,7 @@ int main() {
     // FIXME: These pid values are bad.
     // They should be a really high p, low i and d is probably fine.
     // I have these so that I could see the controller was working.
-    pid_s pendPid;
-    pendPid.setpoint = 0;
-    pendPid.kp = 0.1f;
-    pendPid.ki = 1.0f;
-    pendPid.kd = 0.01f;
+    pid_s pendPid(0, 0.1f, 1.0f, 0.01f);
 
     b2Body *cart = nullptr;
     {
@@ -122,8 +102,6 @@ int main() {
     window.Open();
     debugDraw.Create();
     debugDraw.SetFlags(b2Draw::e_shapeBit | b2Draw::e_jointBit);
-
-    glfwSwapInterval(1);
 
     // run our physics sim at 60fps;
     static const float timeStep = 1.0f / 60.0f;
