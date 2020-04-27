@@ -1,14 +1,48 @@
 #https://github.com/facebookarchive/RakNet/blob/master/CmakeIncludes/CmakeMacros.txt
 
+MACRO(MESSAGE_CONFIGURING)
+	message(STATUS "Configuring ${CMAKE_CURRENT_BINARY_DIR}")
+ENDMACRO()
+
+MACRO(SETCOMPILEROPTIONS)
+	add_compile_options(-Wall -Wextra -Wpedantic)
+	add_compile_options(-g -O3 -std=c++17)
+ENDMACRO()
+
+#https://github.com/facebookarchive/RakNet/blob/master/CmakeIncludes/CmakeMacros.txt
 MACRO(STDPROJECT PROJECT_NAME)
+	MESSAGE_CONFIGURING()
 	project(${PROJECT_NAME})
-	FILE(GLOB ALL_SOURCE_FILES *.cc)
-	FILE(GLOB ALL_HEADER_FILES *.h)
+	SETCOMPILEROPTIONS()
+	file(GLOB ALL_SOURCE_FILES *.cpp)
+	file(GLOB ALL_HEADER_FILES *.h)
 	add_executable(${PROJECT_NAME} ${ALL_SOURCE_FILES} ${ALL_HEADER_FILES})
 	target_include_directories(${PROJECT_NAME} PUBLIC ${INVPEND_INCLUDE_ONLY_DIR} PUBLIC ./)
 	target_link_libraries(${PROJECT_NAME} ${INVPEND_COMMON_LIBS})
-ENDMACRO(STDPROJECT)
+ENDMACRO()
 
+MACRO(ARDUINOPROJECT PROJECT_NAME)
+	MESSAGE_CONFIGURING()
+	project(arduino_${PROJECT_NAME})
+
+	# FIXME: Ideally I would be using pre/post build commands
+	# HACK: SymLinking source files is a side effect of using arduino-cli
+	add_custom_target(
+		arduino_${PROJECT_NAME}
+		ALL
+		COMMAND rm -rf ${CMAKE_CURRENT_SOURCE_DIR}/src
+		COMMAND mkdir ${CMAKE_CURRENT_SOURCE_DIR}/src
+		COMMAND mkdir ${CMAKE_CURRENT_SOURCE_DIR}/src/iplib
+		COMMAND mkdir ${CMAKE_CURRENT_SOURCE_DIR}/src/iplib/arduino
+		COMMAND ln -s ${CMAKE_SOURCE_DIR}/lib/arduino/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/iplib/arduino
+		COMMAND ln -s ${CMAKE_SOURCE_DIR}/lib/arduino/*.h ${CMAKE_CURRENT_SOURCE_DIR}/src/iplib/arduino
+		COMMAND ln -s ${CMAKE_SOURCE_DIR}/lib/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/iplib
+		COMMAND ln -s ${CMAKE_SOURCE_DIR}/lib/*.h ${CMAKE_CURRENT_SOURCE_DIR}/src/iplib
+		COMMAND arduino-cli compile -b ${ARDUINO_FQBN} --output ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME} --build-path ${CMAKE_CURRENT_BINARY_DIR}/build --build-properties="compiler.c.extra_flags=-DARDUINO,compiler.cpp.extra_flags=-DARDUINO" ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.cpp
+	)
+ENDMACRO()
+
+#https://github.com/facebookarchive/RakNet/blob/master/CmakeIncludes/CmakeMacros.txt
 #Gets the current foldername without the path
 MACRO(GETCURRENTFOLDER)
 	string(REGEX REPLACE
