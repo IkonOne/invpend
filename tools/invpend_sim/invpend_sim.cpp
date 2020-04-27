@@ -22,7 +22,10 @@
 using namespace std;
 using namespace iplib;
 
-const net::Address LOOPBACK(127,0,0,1, 30000);
+constexpr int PORT_SERVER = 30000;
+// constexpr int PORT_CLIENT = 30001;
+constexpr int PORT_SIM = 30002;
+const net::Address ADDRESS_SERVER(127,0,0,1, PORT_SERVER);
 
 /**********************
  * Simulation
@@ -144,10 +147,13 @@ class Simulation {
 
 int main() {
     net::Peer<net::SocketUDP> peer(IPLIB_MAX_PACKET_SIZE, IPLIB_PROTOCOL_ID, isLittleEndian());
-    peer.GetConnection().SetTransmitAddress(LOOPBACK);
-    peer.GetConnection().Open(30000);
+    peer.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
+    peer.GetConnection().Open(PORT_SIM);
 
-    net::ipsrv_pos_t ipsrv_pos_packet;
+    union {
+        net::ipsrv_pos_t ipsrv_pos;
+    } tx;
+
     union {
         net::ipsrv_pos_t ipsrv_pos;
     } rx;
@@ -166,8 +172,9 @@ int main() {
 
         // if there is new info to send.
         if (sim.Step()) {
-            ipsrv_pos_packet.pend_theta = sim.phys.revoluteJoint->GetJointAngle();
-            peer.Transmit(&ipsrv_pos_packet);
+            tx.ipsrv_pos.pend_theta = sim.phys.revoluteJoint->GetJointAngle();
+            peer.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
+            peer.Transmit(&tx.ipsrv_pos);
         }
     }
 
