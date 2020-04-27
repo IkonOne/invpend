@@ -14,7 +14,7 @@ struct pid_s {
     float prev_error;
 };
 
-float pid(pid_t &pid, float measured, float dt) {
+float pid(pid_s &pid, float measured, float dt) {
     // https://en.wikipedia.org/wiki/PID_controller#Pseudocode
     float error = pid.setpoint - measured;
     pid.integral = pid.integral + error * dt;

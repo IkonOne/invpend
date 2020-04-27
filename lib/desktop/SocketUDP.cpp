@@ -49,22 +49,24 @@ void SocketUDP::Close() {
 	_sockfd = 0;
 }
 
-void SocketUDP::Send(const Address &destination, const void *data, int size) {
+int SocketUDP::Transmit(const void *data, int size) {
 	if (!IsOpen())
 		throw runtime_error("socket is not open");
 
 	sockaddr_in addr;
 	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(destination.GetAddress());
-	addr.sin_port = htons(destination.GetPort());
+	addr.sin_addr.s_addr = htonl(_tx_address.GetAddress());
+	addr.sin_port = htons(_tx_address.GetPort());
 
 	int sent_bytes = sendto(_sockfd, (const char *)data, size, 0, (sockaddr*) &addr, sizeof(sockaddr_in));
 
 	if (sent_bytes == -1)
 		throw runtime_error("failed to send packet - "s + strerror(errno));
+
+	return sent_bytes;
 }
 
-int SocketUDP::Receive(Address &src_out, void *data, int size) {
+int SocketUDP::Receive(void *data, int size) {
 	if (!IsOpen())
 		throw runtime_error("socket is not open");
 
@@ -73,7 +75,7 @@ int SocketUDP::Receive(Address &src_out, void *data, int size) {
 	int bytes = recvfrom(_sockfd, (char*)data, size, 0, (sockaddr*) &from, &from_len);
 
 	if (bytes != -1)
-		src_out = Address(ntohl(from.sin_addr.s_addr), ntohs(from.sin_port));
+		_rx_address = Address(ntohl(from.sin_addr.s_addr), ntohs(from.sin_port));
 
 	return bytes;
 }

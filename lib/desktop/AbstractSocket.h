@@ -1,6 +1,8 @@
 #ifndef _SOCKETINTERFACE_H_
 #define _SOCKETINTERFACE_H_
 
+#include "Address.h"
+
 namespace iplib {
 namespace net {
 
@@ -9,6 +11,11 @@ namespace net {
  */
 class AbstractSocket {
   public:
+	void SetReceiveAddress(const Address &address) { _rx_address = address; }
+	const Address &GetReceiveAddress() const { return _rx_address; }
+
+	void SetTransmitAddress(const Address &address) { _tx_address = address; }
+	const Address &GetTransmitAddress() const { return _tx_address; }
 
 	/**
 	 *	Opens a socket for communication on the given port.
@@ -26,9 +33,9 @@ class AbstractSocket {
 	virtual bool IsOpen() const = 0;
 
 	/**
-	 *	Sends [data] of [size] to the [dest] address.
+	 *	Sends [data] of [size].
 	 */
-	virtual void Send(const Address &dest, const void *data, int size) = 0;
+	virtual int Transmit(const void *data, int size) = 0;
 	
 	/**
 	 *	Receives data from the destination src_out address.
@@ -37,7 +44,11 @@ class AbstractSocket {
 	 *	- [buff_size] is the size of the buffer.
 	 *	- Returns the size of the data received if any.  Otherwise -1.
 	 */
-	virtual int Receive(Address &src_out, void *buffer, int buff_size) = 0;
+	virtual int Receive(void *buffer, int buff_size) = 0;
+
+  protected:
+	Address _rx_address;
+	Address _tx_address;
 };
 
 } // net

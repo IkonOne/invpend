@@ -9,9 +9,9 @@ using byte = uint8_t;
 
 namespace iplib {
 
-constexpr unsigned int SERIAL_BUFFER_SIZE = 196;
-constexpr unsigned int IPLIB_MAX_PACKET_SIZE = 128;
-constexpr unsigned int IPLIB_PROTOCOL_ID = 0xFFA7;
+const unsigned int SERIAL_BUFFER_SIZE = 196;
+const unsigned int IPLIB_MAX_PACKET_SIZE = 128;
+const unsigned int IPLIB_PROTOCOL_ID = 0xFFA7;
 
 namespace net {
 namespace Baud {

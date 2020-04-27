@@ -53,7 +53,7 @@ typedef struct packet_header {
         pb.Read(&dataSize);
     }
 
-    void WriteTo(PacketBuilder &pb) {
+    void WriteTo(PacketBuilder &pb) const {
         pb.Write(&pid);
         pb.Write(&type);
         pb.Write(&dataSize);
@@ -75,7 +75,7 @@ typedef struct NULL_PACKET {
     char nothing;
 
     void ReadFrom(PacketBuilder &pb) { pb.Read(&nothing); }
-    void WriteTo(PacketBuilder &pb) { pb.Write(&nothing); }
+    void WriteTo(PacketBuilder &pb) const { pb.Write(&nothing); }
     static constexpr size_t GetSize() { return sizeof(nothing); }
 } null_packet_t;
 
@@ -86,7 +86,7 @@ typedef struct SYN {
     uint32_t val;
 
     void ReadFrom(PacketBuilder &pb) { pb.Read(&val); }
-    void WriteTo(PacketBuilder &pb) { pb.Write(&val); }
+    void WriteTo(PacketBuilder &pb) const { pb.Write(&val); }
     static constexpr size_t GetSize() { return sizeof(val); }
 } syn_t;
 
@@ -97,7 +97,7 @@ typedef struct SYN_ACK {
     uint32_t val;
 
     void ReadFrom(PacketBuilder &pb) { pb.Read(&val); }
-    void WriteTo(PacketBuilder &pb) { pb.Write(&val); }
+    void WriteTo(PacketBuilder &pb) const { pb.Write(&val); }
     static constexpr size_t GetSize() { return sizeof(val); }
 } syn_ack_t;
 
@@ -108,7 +108,7 @@ typedef struct ACK {
     uint32_t val;
 
     void ReadFrom(PacketBuilder &pb) { pb.Read(&val); }
-    void WriteTo(PacketBuilder &pb) { pb.Write(&val); }
+    void WriteTo(PacketBuilder &pb) const { pb.Write(&val); }
     static constexpr size_t GetSize() { return sizeof(val); }
 } ack_t;
 
@@ -121,7 +121,7 @@ typedef struct IPSRV_READY {
     int32_t ready;
 
     void ReadFrom(PacketBuilder &pb) { pb.Read(&ready); }
-    void WriteTo(PacketBuilder &pb) { pb.Write(&ready); }
+    void WriteTo(PacketBuilder &pb) const { pb.Write(&ready); }
     static constexpr size_t GetSize() { return sizeof(ready); }
 } ipsrv_ready_t;
 
@@ -137,7 +137,7 @@ typedef struct IPSRV_POS {
         // pb.Read(&motor_pos);
     }
 
-    void WriteTo(PacketBuilder &pb) {
+    void WriteTo(PacketBuilder &pb) const {
         pb.Write(&pend_theta);
         // pb.Write(&motor_pos);
     }

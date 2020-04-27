@@ -12,11 +12,11 @@ namespace net {
 class SocketUDP : public AbstractSocket {
   public:
 	~SocketUDP();
-	void Open(unsigned short port);
-	void Close();
-	bool IsOpen() const;
-	void Send(const Address &dest, const void *data, int size);
-	int Receive(Address &src_out, void *buffer, int buff_size);
+	void Open(unsigned short port) override;
+	void Close() override;
+	bool IsOpen() const override;
+	int Transmit(const void *data, int size) override;
+	int Receive(void *buffer, int buff_size) override;
 
   private:
 	int _sockfd;
