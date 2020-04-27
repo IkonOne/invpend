@@ -1,6 +1,7 @@
 #ifndef PEER_H
 #define PEER_H
 
+#include "CircularByteBuffer.h"
 #include "Protocol.h"
 #include "PacketBuilder.h"
 #include "globals.h" // byte
@@ -8,8 +9,10 @@
 #include <string.h> // memset()
 
 #ifndef ARDUINO
+#ifdef PACKET_DEBUG
 #include <iostream>
 #include <iomanip>
+#endif
 #endif
 
 namespace iplib {
@@ -51,6 +54,7 @@ class Peer {
     void WriteHeader(unsigned char packetType);
     void WriteChecksum();
 
+    int BufferConnectionData();
     bool ReadProtocol();
     bool ReadHeader();
     bool ReadPacket();
@@ -61,6 +65,7 @@ class Peer {
     bool _isLittleEndian;
     PacketBuilder _txBuilder;
     packet_header_t _txHeader;
+    CircularByteBuffer _rxBuffer;
     PacketBuilder _rxBuilder;
     packet_header_t _rxHeader;
 
@@ -85,6 +90,7 @@ template <typename TConnection>
 Peer<TConnection>::Peer(int maxPacketSize, protocol_id_t protocolID, bool isLittleEndian)
     : _isLittleEndian(isLittleEndian),
         _txBuilder(maxPacketSize * 4, isLittleEndian),
+        _rxBuffer(maxPacketSize * 4),
         _rxBuilder(maxPacketSize * 4, isLittleEndian),
         _protocolID(protocolID),
         _protocolIDHead(protocolID >> 8),
@@ -116,13 +122,29 @@ void Peer<TConnection>::WriteChecksum() {
 }
 
 template <typename TConnection>
+int Peer<TConnection>::BufferConnectionData() {
+    int byteCount = _connection.Receive(_rxBuffer.GetScratch(), _rxBuffer.GetCapacity() - _rxBuffer.GetSize());
+    #if !defined(ARDUINO) && defined(PACKET_DEBUG)
+    if (byteCount > 0)
+        std::cout << "buffered [" << byteCount << "] bytes...\n";
+    #endif
+    _rxBuffer.CaptureScratch(byteCount);
+
+    return byteCount;
+}
+
+template <typename TConnection>
 bool Peer<TConnection>::ReadProtocol() {
     ::byte readByte = 0;
 
     if (_readState > READ_STATE_PROTO)
         return true;
 
-    while (0 != _connection.Receive(&readByte, 1)) {
+    #if !defined(ARDUINO) && defined(PACKET_DEBUG)
+    std::cout << "reading protocol...\n";
+    #endif
+
+    while (_rxBuffer.GetFront(readByte)) {
         #if !defined(ARDUINO) && defined(PACKET_DEBUG)
         std::cout << "PID  " << (unsigned int)readByte << std::endl;
         #endif
@@ -149,7 +171,11 @@ bool Peer<TConnection>::ReadHeader() {
     if (_readState > READ_STATE_HEAD)
         return true;
 
-    int bytesReceived = _connection.Receive(_readBuff, headerSize - _rxBuilder.GetSize());
+    #if !defined(ARDUINO) && defined(PACKET_DEBUG)
+    std::cout << "reading header...\n";
+    #endif
+
+    int bytesReceived = _rxBuffer.GetFront(_readBuff, headerSize - _rxBuilder.GetSize());
     _rxBuilder.WriteRaw(_readBuff, bytesReceived);
 
     #if !defined(ARDUINO) && defined(PACKET_DEBUG)
@@ -170,7 +196,11 @@ bool Peer<TConnection>::ReadPacket() {
     if (_readState > READ_STATE_PKT)
         return true;
     
-    int bytesReceived = _connection.Receive(_readBuff, _rxHeader.dataSize - _rxBuilder.GetSize());
+    #if !defined(ARDUINO) && defined(PACKET_DEBUG)
+    std::cout << "reading packet...\n";
+    #endif
+
+    int bytesReceived = _rxBuffer.GetFront(_readBuff, _rxHeader.dataSize - _rxBuilder.GetSize());
     _rxBuilder.WriteRaw(_readBuff, bytesReceived);
 
     #if !defined(ARDUINO) && defined(PACKET_DEBUG)
@@ -190,16 +220,23 @@ bool Peer<TConnection>::ValidateChecksum() {
     if (_readState > READ_STATE_CHECKSUM)
         return true;
 
-    if (_connection.Receive(_readBuff, 1) < 1)
+    #if !defined(ARDUINO) && defined(PACKET_DEBUG)
+    std::cout << "reading checksum...\n";
+    #endif
+
+    uint8_t cs;
+    if (!_rxBuffer.GetFront(cs))
         return false;
  
     _readPktCS = _rxBuilder.GetChecksum();
 
     #if !defined(ARDUINO) && defined(PACKET_DEBUG)
-    std::cout << "CRC  " << "read " << (unsigned int)_readBuff[0] << " actual " << (unsigned int)_readPktCS << std::endl;
+    unsigned int r = cs;
+    unsigned int a = _readPktCS;
+    std::cout << "CRC  " << "read " << r << " actual " << a << std::endl;
     #endif
     
-    if (_readBuff[0] != _readPktCS) {
+    if (cs != _readPktCS) {
         ResetReceive();
         return false;
     }
@@ -209,6 +246,9 @@ bool Peer<TConnection>::ValidateChecksum() {
 
 template <typename TConnection>
 void Peer<TConnection>::ResetReceive() {
+    #if !defined(ARDUINO) && defined(PACKET_DEBUG)
+    std::cout << "resetting receive...\n";
+    #endif
     _lastProtocolByte = ~_protocolIDHead;
     _readState = READ_STATE_PROTO;
     _rxBuilder.Reset();
@@ -216,6 +256,7 @@ void Peer<TConnection>::ResetReceive() {
 
 template <typename TConnection>
 bool Peer<TConnection>::IsPacketReady() {
+    if (BufferConnectionData() <= 0) return false;
     if (!ReadProtocol()) return false;
     if (!ReadHeader()) return false;
     if (!ReadPacket()) return false;

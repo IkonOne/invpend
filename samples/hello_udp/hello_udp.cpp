@@ -7,27 +7,34 @@ using namespace std;
 using namespace iplib;
 
 int main() {
-	const int PORT = 30000;
-	const net::Address LOOPBACK(127,0,0,1, PORT);
+	const int PORT_TX = 30000;
+	const int PORT_RX = 30001;
+	const net::Address ADDRESS_TX(127,0,0,1, PORT_TX);
+	const net::Address ADDRESS_RX(127,0,0,1, PORT_RX);
 	const char data[] = "Hello World!\n";
 	unsigned char buffer[256];
 
-	net::SocketUDP socket;
-	socket.Open(PORT);
-	socket.Send(LOOPBACK, data, sizeof(data));
+	net::SocketUDP socket_rx;
+	socket_rx.Open(PORT_RX);
 
-	while (true) {
-		net::Address src;
-		int bytes_read = socket.Receive(src, buffer, sizeof(buffer));
+	net::SocketUDP socket_tx;
+	socket_tx.Open(PORT_TX);
+	socket_tx.SetTransmitAddress(ADDRESS_RX);
+	socket_tx.Transmit(data, sizeof(data));
 
-		if (!bytes_read)
-			continue;
+	int bytes_read = 0;
+	while (0 < (bytes_read = socket_rx.Receive(buffer, 255))) {
+		cout << bytes_read << endl;
+		cout << buffer << endl;;
 
-		cout << buffer;
-		break;
+		// int bytes_read = socket_rx.Receive(buffer, sizeof(buffer));
+
+		// if (!bytes_read)
+		// 	continue;
+
+		// cout << buffer;
+		// break;
 	}
-
-	socket.Close();
 
 	return 0;
 }

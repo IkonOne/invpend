@@ -74,10 +74,12 @@ int SocketUDP::Receive(void *data, int size) {
 	socklen_t from_len = sizeof(sockaddr_in);
 	int bytes = recvfrom(_sockfd, (char*)data, size, 0, (sockaddr*) &from, &from_len);
 
-	if (bytes != -1)
+	if (bytes != -1) {
 		_rx_address = Address(ntohl(from.sin_addr.s_addr), ntohs(from.sin_port));
+		return bytes;
+	}
 
-	return bytes;
+	return 0;
 }
 
 } // net
