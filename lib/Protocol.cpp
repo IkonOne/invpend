@@ -14,6 +14,9 @@ size_t GetPacketSize(unsigned char packetType) {
         case PacketType::IPSRV_READY:   return ipsrv_ready_t::GetSize();
         case PacketType::IPSRV_POS:     return ipsrv_pos_t::GetSize();
 
+        case PacketType::CLISRV_CART_POS:
+            return clisrv_cart_pos_t::GetSize();
+
         case PacketType::NONE:
         default:
             return 0;

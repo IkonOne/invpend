@@ -37,9 +37,9 @@ void SocketUDP::Open(unsigned short port) {
 	if (::bind(_sockfd, (const sockaddr*) &addr, sizeof(sockaddr_in)) == -1)
 		throw runtime_error("failed to bind socket - "s + strerror(errno));
 
-	const int non_blocking = 1;
-	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK, non_blocking) == -1)
-		throw runtime_error("failed to set non-blocking - "s + strerror(errno));
+	// const int non_blocking = 1;
+	// if (fcntl(_sockfd, F_SETFL, O_NONBLOCK, non_blocking) == -1)
+	// 	throw runtime_error("failed to set non-blocking - "s + strerror(errno));
 }
 
 void SocketUDP::Close() {
@@ -80,6 +80,12 @@ int SocketUDP::Receive(void *data, int size) {
 	}
 
 	return 0;
+}
+
+void SocketUDP::SetBlocking(bool block) {
+	const int non_blocking = block ? 1 : 0;
+	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK, non_blocking) == -1)
+		throw runtime_error("failed to set blocking - "s + strerror(errno));
 }
 
 } // net

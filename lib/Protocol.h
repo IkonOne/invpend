@@ -40,6 +40,9 @@ namespace PacketType {
 
     // Client -> Server
     // reserved 200-249
+
+    constexpr id_t CLISRV_CART_POS  = 201;
+
 }  //  PacketType
 
 typedef struct packet_header {
@@ -130,22 +133,43 @@ typedef struct IPSRV_POS {
 
     packet_header_t header;
     float pend_theta;
-    // float motor_pos;
+    float cart_x;
 
     void ReadFrom(PacketBuilder &pb) {
         pb.Read(&pend_theta);
-        // pb.Read(&motor_pos);
+        pb.Read(&cart_x);
     }
 
     void WriteTo(PacketBuilder &pb) const {
         pb.Write(&pend_theta);
-        // pb.Write(&motor_pos);
+        pb.Write(&cart_x);
     }
 
     static constexpr size_t GetSize() {
-        return sizeof(pend_theta);
+        return
+            sizeof(pend_theta) +
+            sizeof(cart_x);
     }
 } ipsrv_pos_t ;
+
+typedef struct CLISRV_CART_POS {
+    static constexpr unsigned char TYPE = PacketType::CLISRV_CART_POS;
+
+    packet_header_t header;
+    float cart_x;
+
+    void ReadFrom(PacketBuilder&pb) {
+        pb.Read(&cart_x);
+    }
+
+    void WriteTo(PacketBuilder &pb) const {
+        pb.Write(&cart_x);
+    }
+
+    static constexpr size_t GetSize() {
+        return sizeof(cart_x);
+    }
+} clisrv_cart_pos_t;
 
 } // net
 } // iplib

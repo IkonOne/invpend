@@ -1,7 +1,9 @@
+#include <atomic>
 #include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 
 #include <iplib/Address.h>
 #include <iplib/MathHelpers.h>
@@ -18,6 +20,7 @@
 #include <box2d/b2_world.h>
 #include <box2d/b2_friction_joint.h>
 #include <box2d/b2_revolute_joint.h>
+#include <box2d/b2_prismatic_joint.h>
 
 using namespace std;
 using namespace iplib;
@@ -26,6 +29,17 @@ constexpr int PORT_SERVER = 30000;
 // constexpr int PORT_CLIENT = 30001;
 constexpr int PORT_SIM = 30002;
 const net::Address ADDRESS_SERVER(127,0,0,1, PORT_SERVER);
+
+struct dat_s {
+    struct {
+        atomic<float> cart_x = 0;
+        atomic<float> pend_theta = 0;
+    } ground_truth;
+
+    struct {
+        atomic<float> cart_x = 0;
+    } control;
+} dat;
 
 /**********************
  * Simulation
@@ -49,6 +63,7 @@ class Simulation {
         b2Body *cart;
         b2Body *pend;
         b2RevoluteJoint *revoluteJoint;
+        b2PrismaticJoint *prismaticJoint;
     } phys;
 
     struct {
@@ -56,22 +71,28 @@ class Simulation {
         TimePoint prev;
     } time;
 
-    Simulation() {
+    pid_s cartPid;
+
+    Simulation()
+        : cartPid(0.0f, 32.0f, 10.0f, 0.0f)
+    {
         // FIXME: Magic numbers describing the inverted pendulum...
         phys.world = make_unique<b2World>(b2Vec2(0.0f, G));
 
         // cart
         {
             b2BodyDef bd;
-            bd.type = b2BodyType::b2_kinematicBody;
+            bd.type = b2BodyType::b2_dynamicBody;
             bd.position.Set(0, 20.0f);
+            bd.linearDamping = 20.0f;
             phys.cart = phys.world->CreateBody(&bd);
 
             b2PolygonShape shape;
-            shape.SetAsBox(0.15f, 0.1f);
+            shape.SetAsBox(1.0f, 1.0f);
 
             b2FixtureDef fd;
             fd.shape = &shape;
+            fd.density = 1.0f;
 
             phys.cart->CreateFixture(&fd);
         }
@@ -80,17 +101,36 @@ class Simulation {
         {
             b2BodyDef bd;
             bd.type = b2BodyType::b2_dynamicBody;
-            bd.position.Set(0.1f, 10.9f);
+            bd.position.Set(0.1f, 20.9f);
             phys.pend = phys.world->CreateBody(&bd);
 
             b2CircleShape shape;
-            shape.m_radius = 0.1f;
+            shape.m_radius = 1.0f;
 
             b2FixtureDef fd;
             fd.shape = &shape;
-            fd.density = 1;
+            fd.density = 0.1f;
 
             phys.pend->CreateFixture(&fd);
+        }
+
+        {
+            b2BodyDef bd;
+            bd.type = b2BodyType::b2_kinematicBody;
+            bd.position = phys.cart->GetPosition();
+            auto body = phys.world->CreateBody(&bd);
+
+            b2PrismaticJointDef pjd;
+            b2Vec2 worldAxis(1.0f, 0.0f);
+            pjd.Initialize(body, phys.cart, body->GetWorldCenter(), worldAxis);
+            pjd.enableLimit = true;
+            pjd.lowerTranslation = -15.0f;
+            pjd.upperTranslation = 15.0f;
+            pjd.enableMotor = true;
+            pjd.maxMotorForce = 2000.0f;
+            pjd.collideConnected = false;
+
+            phys.prismaticJoint = (b2PrismaticJoint*)phys.world->CreateJoint(&pjd);
         }
 
         // revolute joint - attatches pendulum to cart
@@ -118,8 +158,6 @@ class Simulation {
 
             phys.world->CreateJoint(&fjd);
         }
-
-
     }
 
     void InitTime() {
@@ -137,6 +175,15 @@ class Simulation {
         time.accum += elapsed;
         if (time.accum >= timeStep) {
             time.accum -= timeStep;
+
+            // cartPid.setpoint = 5;
+            cartPid.setpoint = dat.control.cart_x;
+            if (cartPid.setpoint < -15.0f) cartPid.setpoint = -15.0f;
+            if (cartPid.setpoint > 15.0f) cartPid.setpoint = 15.0f;
+            auto pos = phys.cart->GetPosition();
+            float val = pid(cartPid, pos.x, timeStep.count());
+            phys.prismaticJoint->SetMotorSpeed(val);
+
             phys.world->Step(timeStep.count(), 5, 5);
             return true;
         }
@@ -145,40 +192,57 @@ class Simulation {
     }
 };
 
-int main() {
-    net::Peer<net::SocketUDP> peer(IPLIB_MAX_PACKET_SIZE, IPLIB_PROTOCOL_ID, isLittleEndian());
-    peer.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
-    peer.GetConnection().Open(PORT_SIM);
-
+void UpdateNet(dat_s *dat) {
     union {
         net::ipsrv_pos_t ipsrv_pos;
     } tx;
 
     union {
-        net::ipsrv_pos_t ipsrv_pos;
+        net::clisrv_cart_pos_t clisrv_cart_pos;
     } rx;
+ 
+    net::Peer<net::SocketUDP> peer(IPLIB_MAX_PACKET_SIZE, IPLIB_PROTOCOL_ID, isLittleEndian());
+    peer.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
+    peer.GetConnection().Open(PORT_SIM);
+    peer.GetConnection().SetBlocking(true);
+
+    while (true) {
+        // Receive and process packets.
+        while (peer.IsPacketReady()) {
+            switch(peer.GetPacketType()) {
+                case net::PacketType::CLISRV_CART_POS:
+                    peer.Receive(rx.clisrv_cart_pos);
+                    dat->control.cart_x = rx.clisrv_cart_pos.cart_x;
+                    break;
+            }
+        }
+
+        peer.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
+        tx.ipsrv_pos.pend_theta = dat->ground_truth.pend_theta;
+        tx.ipsrv_pos.cart_x = dat->ground_truth.cart_x;
+        peer.Transmit(&tx.ipsrv_pos);
+
+        this_thread::sleep_for(chrono::milliseconds(15));
+    }
+}
+
+int main() {
+    thread net(UpdateNet, &dat);
 
     Simulation sim;
     sim.InitTime();
 
-    // LOL threads.
     while (true) {
-        // Receive and process packets.
-        switch(peer.GetPacketType()) {
-            case net::PacketType::IPSRV_POS:
-                peer.Receive(rx.ipsrv_pos);
-                break;
-        }
 
-        // if there is new info to send.
         if (sim.Step()) {
-            tx.ipsrv_pos.pend_theta = sim.phys.revoluteJoint->GetJointAngle();
-            peer.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
-            peer.Transmit(&tx.ipsrv_pos);
+            dat.ground_truth.pend_theta = sim.phys.revoluteJoint->GetJointAngle();
+            dat.ground_truth.cart_x = sim.phys.cart->GetPosition().x;
+            // cout << sim.phys.cart->GetPosition().x << '\n';
+            // cout << sim.phys.cart->GetLinearVelocity().x << ' ' << sim.phys.cart->GetLinearVelocity().y << '\n';
+            // cout << sim.phys.cart->GetPosition().x << ' ' << sim.phys.cart->GetPosition().y << '\n';
+            this_thread::sleep_for(chrono::milliseconds(5));
         }
     }
-
-    peer.GetConnection().Close();
 
     return 0;
 }

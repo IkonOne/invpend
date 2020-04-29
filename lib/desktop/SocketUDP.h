@@ -18,6 +18,8 @@ class SocketUDP : public AbstractSocket {
 	int Transmit(const void *data, int size) override;
 	int Receive(void *buffer, int buff_size) override;
 
+	void SetBlocking(bool block=true);
+
   private:
 	int _sockfd;
 };
