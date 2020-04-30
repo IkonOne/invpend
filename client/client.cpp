@@ -49,6 +49,11 @@ struct dat_s {
     struct {
         bool reset_sim;
         float initial_impulse;
+        bool stabilized;
+        int ticks_stable;
+
+        chrono::time_point<chrono::steady_clock> sim_start;
+        chrono::duration<float, chrono::seconds::period> time_to_stable;
     } simulation;
 
     void Init() {
@@ -65,12 +70,19 @@ struct dat_s {
         pids_x.kp = -0.08f;
         pids_x.ki = 0.0f;
         pids_x.kd = 0.0f;
+
+        Reset();
     }
 
     void Reset() {
         lock_guard lock(rw_mtx);
 
         simulation.reset_sim = false;
+        simulation.stabilized = false;
+        simulation.ticks_stable = 0;
+        simulation.time_to_stable = simulation.time_to_stable.zero();
+        simulation.sim_start = chrono::steady_clock::now();
+
         ground_truth.pend_theta = 0;
         ground_truth.pend_d_theta = 0;
         ground_truth.cart_x = 0;
@@ -90,19 +102,35 @@ void UpdateControl(dat_s *dat) {
     constexpr float timeStep = 1.0f / 60.0f;
 
     while (true) {
-        if (dat->control.enabled) {
+        {
             lock_guard lock(dat->rw_mtx);
+            if (dat->control.enabled) {
 
-            float theta = dat->ground_truth.pend_theta;
-            while (theta > b2_pi) theta -= 2 * b2_pi;
-            while (theta < -b2_pi) theta += 2 * b2_pi;
+                float theta = dat->ground_truth.pend_theta;
+                while (theta > b2_pi) theta -= 2 * b2_pi;
+                while (theta < -b2_pi) theta += 2 * b2_pi;
 
-            if (abs(theta) < b2_pi * 0.3f && abs(dat->ground_truth.pend_d_theta) < dat->control.maxControlVel * timeStep) {
-                float x = dat->ground_truth.cart_x;
-                float valTheta = pid(dat->pids_theta, theta, timeStep);
-                float valDx = pid(dat->pids_x, x, timeStep);
+                if (abs(theta) < b2_pi * 0.3f && abs(dat->ground_truth.pend_d_theta) < dat->control.maxControlVel * timeStep) {
+                    float x = dat->ground_truth.cart_x;
+                    float valTheta = pid(dat->pids_theta, theta, timeStep);
+                    float valDx = pid(dat->pids_x, x, timeStep);
 
-                dat->control.cart_x = x + valTheta + valDx;
+                    dat->control.cart_x = x + valTheta + valDx;
+                }
+            }
+
+            if (!dat->simulation.stabilized) {
+                if (dat->ground_truth.pend_d_theta < 0.0001f)
+                    dat->simulation.ticks_stable++;
+                else
+                    dat->simulation.ticks_stable = 0;
+                
+                // ~1 second
+                if (dat->simulation.ticks_stable > 60) {
+                    dat->simulation.stabilized = true;
+                    dat->simulation.time_to_stable =  chrono::steady_clock::now() - dat->simulation.sim_start;
+                }
+                
             }
         }
 
@@ -246,6 +274,9 @@ int main(int argc, char *argv[]) {
                     dat.simulation.reset_sim = reset_sim;
 
                 ImGui::DragFloat("Initial Impulse", &dat.simulation.initial_impulse, 1.0f, -200.0f, 200.0f);
+
+                ImGui::Checkbox("Is Stabilized", &dat.simulation.stabilized);
+                ImGui::Text("Time to Stable: %f", dat.simulation.time_to_stable.count());
             }
 
             ImGui::End();
