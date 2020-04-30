@@ -11,12 +11,6 @@ option( INVPEND_ENABLE_OPENGL "Builds iplib opengl" OFF)
 set(INVPEND_INCLUDE_ONLY_DIR ${CMAKE_BINARY_DIR}/include)
 set(INVPEND_COMMON_LIBS iplib)
 
-message(STATUS "Setting up ${INVPEND_INCLUDE_ONLY_DIR} ...")
-file(MAKE_DIRECTORY ${INVPEND_INCLUDE_ONLY_DIR}/iplib)
-file(GLOB INVPEND_HEADER_FILES ${InvPend_SOURCE_DIR}/lib/*.h ${InvPend_SOURCE_DIR}/lib/desktop/*.h)
-file(COPY ${INVPEND_HEADER_FILES} DESTINATION ${INVPEND_INCLUDE_ONLY_DIR}/iplib)
-message(STATUS "Done setting up ${INVPEND_INCLUDE_ONLY_DIR} ...")
-
 include(./CMakeIncludes/CMakeMacros.txt)
 
 add_subdirectory(thirdparty)

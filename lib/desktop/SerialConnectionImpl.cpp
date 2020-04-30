@@ -8,7 +8,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <stddef.h>
-#include "globals.h"    // byte
+#include "../globals.h"    // byte
 #include "../SerialConnection.h"
 
 using namespace std;
