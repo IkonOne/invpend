@@ -3,11 +3,11 @@
 #include <stdexcept>
 #include <thread>
 
-#include <iplib/Address.h>
+#include <iplib/desktop/Address.h>
 #include <iplib/globals.h>
 #include <iplib/MathHelpers.h>
 #include <iplib/Peer.h>
-#include <iplib/SocketUDP.h>
+#include <iplib/desktop/SocketUDP.h>
 #include <iplib/SerialConnection.h>
 
 using namespace std;
@@ -37,6 +37,7 @@ void UpdateNet() {
                     endpointUDP.Receive(packet.sim_setup);
                     endpointUDP.GetConnection().SetTransmitAddress(ADDRESS_SIM);
                     endpointUDP.Transmit(&packet.sim_setup);
+                    break;
 
                 case net::PacketType::IPSRV_POS:
                     endpointUDP.Receive(packet.ipsrv_pos);
@@ -48,6 +49,7 @@ void UpdateNet() {
                     endpointUDP.Receive(packet.clisrv_cart_pos);
                     endpointUDP.GetConnection().SetTransmitAddress(ADDRESS_SIM);
                     endpointUDP.Transmit(&packet.clisrv_cart_pos);
+                    break;
             }
         }
 

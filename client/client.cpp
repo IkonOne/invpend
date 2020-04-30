@@ -117,10 +117,16 @@ void UpdateControl(dat_s *dat) {
 
                     dat->control.cart_x = x + valTheta + valDx;
                 }
+                else {
+                    dat->pids_theta.integral = 0;
+                    dat->pids_theta.prev_error = 0;
+                    dat->pids_x.integral = 0;
+                    dat->pids_x.prev_error = 0;
+                }
             }
 
             if (!dat->simulation.stabilized) {
-                if (dat->ground_truth.pend_d_theta < 0.0001f)
+                if (abs(dat->ground_truth.pend_d_theta) < 0.001f)
                     dat->simulation.ticks_stable++;
                 else
                     dat->simulation.ticks_stable = 0;
@@ -273,7 +279,7 @@ int main(int argc, char *argv[]) {
                 if (!dat.simulation.reset_sim)
                     dat.simulation.reset_sim = reset_sim;
 
-                ImGui::DragFloat("Initial Impulse", &dat.simulation.initial_impulse, 1.0f, -200.0f, 200.0f);
+                ImGui::DragFloat("Initial Impulse", &dat.simulation.initial_impulse, 0.1f, -10.0f, 10.0f);
 
                 ImGui::Checkbox("Is Stabilized", &dat.simulation.stabilized);
                 ImGui::Text("Time to Stable: %f", dat.simulation.time_to_stable.count());

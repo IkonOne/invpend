@@ -6,11 +6,11 @@
 #include <string>
 #include <thread>
 
-#include <iplib/Address.h>
+#include <iplib/desktop/Address.h>
 #include <iplib/MathHelpers.h>
 #include <iplib/PacketBuilder.h>
 #include <iplib/Protocol.h>
-#include <iplib/SocketUDP.h>
+#include <iplib/desktop/SocketUDP.h>
 #include <iplib/Peer.h>
 
 #include <box2d/b2_body.h>
@@ -179,7 +179,7 @@ class Simulation {
         }
 
         cout << "Initial Impulse: " << initial_impulse << endl;
-        phys.cart->ApplyLinearImpulseToCenter(b2Vec2(initial_impulse, 0), true);
+        phys.pend->ApplyLinearImpulseToCenter(b2Vec2(initial_impulse, 0), true);
     }
 
     void Restart(float initial_impulse = 0.1f) {
@@ -255,6 +255,7 @@ void UpdateNet(dat_s *dat, Simulation *sim) {
                 case net::PacketType::SIM_SETUP:
                     peer.Receive(rx.sim_setup);
                     sim->Restart(rx.sim_setup.initial_impulse);
+                    break;
             }
         }
 
