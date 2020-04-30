@@ -18,9 +18,10 @@ constexpr int PORT_CLIENT = 30001;
 constexpr int PORT_SIM = 30002;
 net::Address ADDRESS_CLIENT(127,0,0,1, PORT_CLIENT);
 net::Address ADDRESS_SIM(127,0,0,1, PORT_SIM);
-// const net::Address ADDRESS_SIM(127,0,0,1, PORT_SIM);
+
 void UpdateNet() {
     union {
+        net::sim_setup_t sim_setup;
         net::ipsrv_pos_t ipsrv_pos;
         net::clisrv_cart_pos_t clisrv_cart_pos;
     } packet;
@@ -32,6 +33,11 @@ void UpdateNet() {
     while (true) {
         while (endpointUDP.IsPacketReady()) {
             switch(endpointUDP.GetPacketType()) {
+                case net::PacketType::SIM_SETUP:
+                    endpointUDP.Receive(packet.sim_setup);
+                    endpointUDP.GetConnection().SetTransmitAddress(ADDRESS_SIM);
+                    endpointUDP.Transmit(&packet.sim_setup);
+
                 case net::PacketType::IPSRV_POS:
                     endpointUDP.Receive(packet.ipsrv_pos);
                     endpointUDP.GetConnection().SetTransmitAddress(ADDRESS_CLIENT);

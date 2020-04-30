@@ -24,6 +24,8 @@ namespace PacketType {
     constexpr id_t SYN_ACK         = 11;
     constexpr id_t ACK             = 12;
 
+    constexpr id_t SIM_SETUP        = 25;
+
     // Server -> Inverted Pendulum
     // reserved 50-99
 
@@ -48,7 +50,7 @@ namespace PacketType {
 typedef struct packet_header {
     protocol_id_t pid;
     id_t type;   // type of packet sent
-    size_t dataSize;
+    size_t dataSize;    // FIXME: redundant given type
 
     void ReadFrom(PacketBuilder &pb) {
         pb.Read(&pid);
@@ -115,6 +117,28 @@ typedef struct ACK {
     static constexpr size_t GetSize() { return sizeof(val); }
 } ack_t;
 
+// Simulation
+
+typedef struct SIM_SETUP {
+    static constexpr unsigned char TYPE = PacketType::SIM_SETUP;
+
+    packet_header_t header;
+    float initial_impulse;
+
+    void ReadFrom(PacketBuilder &pb) {
+        pb.Read(&initial_impulse);
+    }
+
+    void WriteTo(PacketBuilder &pb) const {
+        pb.Write(&initial_impulse);
+    }
+
+    static constexpr size_t GetSize() {
+        return
+            sizeof(initial_impulse);
+    }
+} sim_setup_t;
+
 // Inverted Pendulum
 
 typedef struct IPSRV_READY {
@@ -174,6 +198,28 @@ typedef struct CLISRV_CART_POS {
         return sizeof(cart_x);
     }
 } clisrv_cart_pos_t;
+
+size_t GetPacketSize(unsigned char packetType) {
+    switch(packetType) {
+        case PacketType::NULL_PACKET:   return null_packet_t::GetSize();
+
+        case PacketType::SYN:           return syn_t::GetSize();
+        case PacketType::SYN_ACK:       return syn_ack_t::GetSize();
+        case PacketType::ACK:           return ack_t::GetSize();
+
+        case PacketType::SIM_SETUP:     return sim_setup_t::GetSize();
+
+        case PacketType::IPSRV_READY:   return ipsrv_ready_t::GetSize();
+        case PacketType::IPSRV_POS:     return ipsrv_pos_t::GetSize();
+
+        case PacketType::CLISRV_CART_POS:
+            return clisrv_cart_pos_t::GetSize();
+
+        case PacketType::NONE:
+        default:
+            return 0;
+    }
+}
 
 } // net
 } // iplib

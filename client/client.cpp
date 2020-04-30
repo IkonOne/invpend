@@ -1,6 +1,7 @@
 #include <atomic>
 #include <chrono>
 #include <iostream>
+#include <mutex>
 #include <thread>
 
 // for debug drawing
@@ -28,62 +29,78 @@ constexpr int PORT_CLIENT = 30001;
 net::Address ADDRESS_SERVER(127,0,0,1, PORT_SERVER);
 
 struct dat_s {
+    recursive_mutex rw_mtx;
+
+    pid_s pids_theta;
+    pid_s pids_x;
+
     struct {
         atomic<bool> enabled = true;
-        atomic<float> cart_x = 0;
-        atomic<float> maxControlVel = 0.4f;
+        float cart_x = 0;
+        float maxControlVel = 0.4f;
     } control;
 
     struct {
-        atomic<float> pend_theta = 0;
-        atomic<float> pend_d_theta = 0;
-        atomic<float> cart_x = 0;
+        float pend_theta = 0;
+        float pend_d_theta = 0;
+        float cart_x = 0;
     } ground_truth;
 
     struct {
-        atomic<float> kp;
-        atomic<float> ki;
-        atomic<float> kd;
-    } pids_theta;
+        bool reset_sim;
+        float initial_impulse;
+    } simulation;
 
-    struct {
-        atomic<float> kp;
-        atomic<float> ki;
-        atomic<float> kd;
-    } pids_x;
+    void Init() {
+        pids_theta.setpoint = 0;
+        pids_theta.prev_error = 0;
+        pids_theta.integral = 0;
+        pids_theta.kp = 2.0f;
+        pids_theta.ki = 5.3f;
+        pids_theta.kd = 0.00125f;
+
+        pids_x.setpoint = 0;
+        pids_x.prev_error = 0;
+        pids_x.integral = 0;
+        pids_x.kp = -0.08f;
+        pids_x.ki = 0.0f;
+        pids_x.kd = 0.0f;
+    }
+
+    void Reset() {
+        lock_guard lock(rw_mtx);
+
+        simulation.reset_sim = false;
+        ground_truth.pend_theta = 0;
+        ground_truth.pend_d_theta = 0;
+        ground_truth.cart_x = 0;
+        control.cart_x = 0;
+
+        pids_theta.setpoint = 0;
+        pids_theta.integral = 0;
+        pids_theta.prev_error = 0;
+
+        pids_x.setpoint = 0;
+        pids_x.integral = 0;
+        pids_x.prev_error = 0;
+    }
 } dat;
 
 void UpdateControl(dat_s *dat) {
     constexpr float timeStep = 1.0f / 60.0f;
-    pid_s pidsTheta(0, 2.0f, 5.3f, 0.00125f);
-    dat->pids_theta.kp = pidsTheta.kp;
-    dat->pids_theta.ki = pidsTheta.ki;
-    dat->pids_theta.kd = pidsTheta.kd;
-
-    pid_s pidsX(0, -0.08f, 0.0f, 0.0f);
-    dat->pids_x.kp = pidsX.kp;
-    dat->pids_x.ki = pidsX.ki;
-    dat->pids_x.kd = pidsX.kd;
 
     while (true) {
         if (dat->control.enabled) {
+            lock_guard lock(dat->rw_mtx);
+
             float theta = dat->ground_truth.pend_theta;
             while (theta > b2_pi) theta -= 2 * b2_pi;
             while (theta < -b2_pi) theta += 2 * b2_pi;
 
             if (abs(theta) < b2_pi * 0.3f && abs(dat->ground_truth.pend_d_theta) < dat->control.maxControlVel * timeStep) {
                 float x = dat->ground_truth.cart_x;
-
-                pidsTheta.kp = dat->pids_theta.kp;
-                pidsTheta.ki = dat->pids_theta.ki;
-                pidsTheta.kd = dat->pids_theta.kd;
-                float valTheta = pid(pidsTheta, theta, timeStep);
-
-                pidsX.setpoint = 0;
-                pidsX.kp = dat->pids_x.kp;
-                pidsX.ki = dat->pids_x.ki;
-                pidsX.kd = dat->pids_x.kd;
-                float valDx = pid(pidsX, x, timeStep);
+                float valTheta = pid(dat->pids_theta, theta, timeStep);
+                float valDx = pid(dat->pids_x, x, timeStep);
 
                 dat->control.cart_x = x + valTheta + valDx;
             }
@@ -100,6 +117,7 @@ void UpdateNet(dat_s *dat) {
     } rx;
 
     union tx_u {
+        net::sim_setup_t sim_setup;
         net::clisrv_cart_pos_t clisrv_cart_pos;
     } tx;
 
@@ -109,6 +127,8 @@ void UpdateNet(dat_s *dat) {
 
     while (true) {
         while (endpoint.IsPacketReady()) {
+            lock_guard lock(dat->rw_mtx);
+
             switch(endpoint.GetPacketType()) {
                 case net::PacketType::IPSRV_POS:
                     endpoint.Receive(rx.ipsrv_pos);
@@ -119,10 +139,21 @@ void UpdateNet(dat_s *dat) {
             }
         }
 
-        // transmit control values
-        tx.clisrv_cart_pos.cart_x = dat->control.cart_x;
-        endpoint.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
-        endpoint.Transmit(&tx.clisrv_cart_pos);
+        {
+            lock_guard lock(dat->rw_mtx);
+
+            // transmit control values
+            tx.clisrv_cart_pos.cart_x = dat->control.cart_x;
+            endpoint.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
+            endpoint.Transmit(&tx.clisrv_cart_pos);
+
+            if (dat->simulation.reset_sim) {
+                tx.sim_setup.initial_impulse = dat->simulation.initial_impulse;
+                dat->Reset();
+                endpoint.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
+                endpoint.Transmit(&tx.sim_setup);
+            }
+        }
 
         this_thread::sleep_for(chrono::milliseconds(5));
     }
@@ -142,6 +173,7 @@ int main(int argc, char *argv[]) {
         ADDRESS_SERVER = net::Address::fromString(argv[1]);
     
     cout << "Server IP: " << ADDRESS_SERVER << '\n';
+    dat.Init();
 
     thread net(UpdateNet, &dat);
     net.detach();
@@ -162,68 +194,63 @@ int main(int argc, char *argv[]) {
     while (!window.GetShouldClose()) {
         window.BeginRender();
 
-        b2Vec2 cartPoints[4];
-        cartPoints[0].Set(-2 + dat.ground_truth.cart_x, 1);
-        cartPoints[1].Set(2 + dat.ground_truth.cart_x, 1);
-        cartPoints[2].Set(2 + dat.ground_truth.cart_x, -1);
-        cartPoints[3].Set(-2 + dat.ground_truth.cart_x, -1);
+        {
+            lock_guard lock(dat.rw_mtx);
 
-        b2Vec2 theta(cos(dat.ground_truth.pend_theta + b2_pi * 0.5f), sin(dat.ground_truth.pend_theta + b2_pi * 0.5f));
-        auto pos = theta;
-        pos.x = pos.x * 9 + dat.ground_truth.cart_x;
-        pos.y *= 9;
-        draw.DrawSegment(b2Vec2(-15, 0.5f), b2Vec2(-15, -1.0f), b2Color(1, 0, 0));
-        draw.DrawSegment(b2Vec2(15, 0.5f), b2Vec2(15, -1.0f), b2Color(1, 0, 0));
-        draw.DrawSegment(b2Vec2(-15, -1.0f), b2Vec2(15, -1.0f), b2Color(1, 0, 0));
-        draw.DrawSolidPolygon(cartPoints, 4, b2Color(0.1f, 0.4f, 0.8f));
-        draw.DrawSegment(b2Vec2(dat.ground_truth.cart_x, 0), pos, b2Color(0.1f, 0.8f, 0.4f));
-        draw.DrawSolidCircle(pos, 1.0f, theta, b2Color(0.8f, 0.1f, 0.4f));
-        draw.DrawPoint(b2Vec2(dat.control.cart_x, 0), 5.0f, b2Color(0.0f, 1.0f, 0.0f));
+            b2Vec2 cartPoints[4];
+            cartPoints[0].Set(-2 + dat.ground_truth.cart_x, 1);
+            cartPoints[1].Set(2 + dat.ground_truth.cart_x, 1);
+            cartPoints[2].Set(2 + dat.ground_truth.cart_x, -1);
+            cartPoints[3].Set(-2 + dat.ground_truth.cart_x, -1);
 
-        auto port = ImGui::GetWindowViewport();
-        g_camera.m_center.SetZero();
-        g_camera.m_width = port->Size.x;
-        g_camera.m_height = port->Size.y;
-        draw.Flush();
+            b2Vec2 theta(cos(dat.ground_truth.pend_theta + b2_pi * 0.5f), sin(dat.ground_truth.pend_theta + b2_pi * 0.5f));
+            auto pos = theta;
+            pos.x = pos.x * 9 + dat.ground_truth.cart_x;
+            pos.y *= 9;
+            draw.DrawSegment(b2Vec2(-15, 0.5f), b2Vec2(-15, -1.0f), b2Color(1, 0, 0));
+            draw.DrawSegment(b2Vec2(15, 0.5f), b2Vec2(15, -1.0f), b2Color(1, 0, 0));
+            draw.DrawSegment(b2Vec2(-15, -1.0f), b2Vec2(15, -1.0f), b2Color(1, 0, 0));
+            draw.DrawSolidPolygon(cartPoints, 4, b2Color(0.1f, 0.4f, 0.8f));
+            draw.DrawSegment(b2Vec2(dat.ground_truth.cart_x, 0), pos, b2Color(0.1f, 0.8f, 0.4f));
+            draw.DrawSolidCircle(pos, 1.0f, theta, b2Color(0.8f, 0.1f, 0.4f));
+            draw.DrawPoint(b2Vec2(dat.control.cart_x, 0), 5.0f, b2Color(0.0f, 1.0f, 0.0f));
 
-        bool enableControl = dat.control.enabled;
-        ImGui::Checkbox("Enable Control", &enableControl);
-        dat.control.enabled = enableControl;
+            auto port = ImGui::GetWindowViewport();
+            g_camera.m_center.SetZero();
+            g_camera.m_width = port->Size.x;
+            g_camera.m_height = port->Size.y;
+            draw.Flush();
 
-        ImGui::Text("Pendulum Theta: %f", (float)dat.ground_truth.pend_theta);
+            ImGui::Begin("Inverted Pendulum Client");
 
-        float cartX = dat.control.cart_x;
-        ImGui::SliderFloat("Cart X", &cartX, -15.0f, 15.0f);
-        dat.control.cart_x = cartX;
+            if (ImGui::CollapsingHeader("Control")) {
+                bool enableControl = dat.control.enabled;
+                ImGui::Checkbox("Enable Control", &enableControl);
+                dat.control.enabled = enableControl;
 
-        float maxControlVel = dat.control.maxControlVel;
-        ImGui::SliderFloat("Maximum Controllable Vel", &maxControlVel, 0, b2_pi);
-        dat.control.maxControlVel = maxControlVel;
+                ImGui::Text("Pendulum Theta: %f", dat.ground_truth.pend_theta);
+                ImGui::SliderFloat("Cart X", &dat.control.cart_x, -15.0f, 15.0f);
+                ImGui::SliderFloat("Maximum Controllable Vel", &dat.control.maxControlVel, 0, b2_pi);
+                ImGui::DragFloat("Pendulum Theta Kp", &dat.pids_theta.kp, 0.01f, 0.0f, 10.0f);
+                ImGui::DragFloat("Pendulum Theta Ki", &dat.pids_theta.ki, 0.01f, 0.0f, 10.0f);
+                ImGui::DragFloat("Pendulum Theta Kd", &dat.pids_theta.kd, 0.01f, 0.0f, 10.0f);
+                ImGui::DragFloat("Cart X Kp", &dat.pids_x.kp, 0.01f, -10.0f, 10.0f);
+                ImGui::DragFloat("Cart X Ki", &dat.pids_x.ki, 0.01f, -10.0f, 10.0f);
+                ImGui::DragFloat("Cart X Kd", &dat.pids_x.kd, 0.01f, -10.0f, 10.0f);
+            }
 
-        float kp = dat.pids_theta.kp;
-        ImGui::DragFloat("Pendulum Theta Kp", &kp, 0.01f, 0.0f, 10.0f);
-        dat.pids_theta.kp = kp;
+            if (ImGui::CollapsingHeader("Simulation")) {
+                // this is really a checkbox/toggle
+                bool reset_sim = ImGui::Button("Reset Simulation");
+                if (!dat.simulation.reset_sim)
+                    dat.simulation.reset_sim = reset_sim;
 
-        float ki = dat.pids_theta.ki;
-        ImGui::DragFloat("Pendulum Theta Ki", &ki, 0.01f, 0.0f, 10.0f);
-        dat.pids_theta.ki = ki;
+                ImGui::DragFloat("Initial Impulse", &dat.simulation.initial_impulse, 1.0f, -200.0f, 200.0f);
+            }
 
-        float kd = dat.pids_theta.kd;
-        ImGui::DragFloat("Pendulum Theta Kd", &kd, 0.01f, 0.0f, 10.0f);
-        dat.pids_theta.kd = kd;
+            ImGui::End();
 
-        float dkp = dat.pids_x.kp;
-        ImGui::DragFloat("Cart X Kp", &dkp, 0.01f, -10.0f, 10.0f);
-        dat.pids_x.kp = dkp;
-
-        float dki = dat.pids_x.ki;
-        ImGui::DragFloat("Cart X Ki", &dki, 0.01f, -10.0f, 10.0f);
-        dat.pids_x.ki = dki;
-
-        float dkd = dat.pids_x.kd;
-        ImGui::DragFloat("Cart X Kd", &dkd, 0.01f, -10.0f, 10.0f);
-        dat.pids_x.kd = dkd;
-
+        }   // lock
 
         window.EndRender();
     }

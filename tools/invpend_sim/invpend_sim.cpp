@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -31,15 +32,26 @@ constexpr int PORT_SIM = 30002;
 net::Address ADDRESS_SERVER(127,0,0,1, PORT_SERVER);
 
 struct dat_s {
+    recursive_mutex rw_mtx;
+
     struct {
-        atomic<float> cart_x = 0; 
-        atomic<float> pend_d_theta = 0;
-        atomic<float> pend_theta = 0;
+        float cart_x = 0; 
+        float pend_d_theta = 0;
+        float pend_theta = 0;
     } ground_truth;
 
     struct {
-        atomic<float> cart_x = 0;
+        float cart_x = 0;
     } control;
+
+    void Reset() {
+        lock_guard lock(rw_mtx);
+
+        ground_truth.cart_x = 0;
+        ground_truth.pend_d_theta = 0;
+        ground_truth.pend_theta = 0;
+        control.cart_x = 0;
+    }
 } dat;
 
 /**********************
@@ -58,6 +70,8 @@ static const Duration timeStep(1.0f / 120.0f);
 
 class Simulation {
   public:
+    recursive_mutex mtx;
+
     struct {
         // since the b2World owns the bodies and joints, it will delete them when destructed
         unique_ptr<b2World> world;
@@ -75,9 +89,11 @@ class Simulation {
 
     pid_s cartPid;
 
-    Simulation()
-        : cartPid(0.0f, 12.0f, 1.0f, 0.0f)
-    {
+    Simulation() : cartPid(0.0f, 12.0f, 1.0f, 0.0f) { }
+
+    void Start(float initial_impulse = 0.1f) {
+        lock_guard lock(mtx);
+
         // FIXME: Magic numbers describing the inverted pendulum...
         phys.world = make_unique<b2World>(b2Vec2(0.0f, G));
 
@@ -103,7 +119,7 @@ class Simulation {
         {
             b2BodyDef bd;
             bd.type = b2BodyType::b2_dynamicBody;
-            bd.position.Set(0.1f, 20.9f);
+            bd.position.Set(0.0f, 20.9f);
             phys.pend = phys.world->CreateBody(&bd);
 
             b2CircleShape shape;
@@ -161,9 +177,25 @@ class Simulation {
 
             phys.world->CreateJoint(&fjd);
         }
+
+        cout << "Initial Impulse: " << initial_impulse << endl;
+        phys.cart->ApplyLinearImpulseToCenter(b2Vec2(initial_impulse, 0), true);
+    }
+
+    void Restart(float initial_impulse = 0.1f) {
+        lock_guard lock(mtx);
+
+        // phys.world is a unique_ptr that is replace in Start
+        phys.cart = nullptr;
+        phys.pend = nullptr;
+        phys.prismaticJoint = nullptr;
+        phys.revoluteJoint = nullptr;
+        phys.prev_theta = 0;
+        Start(initial_impulse);
     }
 
     void InitTime() {
+        lock_guard lock(mtx);
         // total hack to reset accumulator to 0...
         time.accum -= time.accum;
         time.prev = Clock::now();
@@ -171,6 +203,8 @@ class Simulation {
 
     // Returns true if a physics step was executed.
     bool Step() {
+        lock_guard lock(mtx);
+
         auto now = Clock::now();
         auto elapsed = Duration(now - time.prev);
         time.prev = now;
@@ -179,7 +213,6 @@ class Simulation {
         if (time.accum >= timeStep) {
             time.accum -= timeStep;
 
-            // cartPid.setpoint = 5;
             cartPid.setpoint = dat.control.cart_x;
             if (cartPid.setpoint < -15.0f) cartPid.setpoint = -15.0f;
             if (cartPid.setpoint > 15.0f) cartPid.setpoint = 15.0f;
@@ -195,12 +228,13 @@ class Simulation {
     }
 };
 
-void UpdateNet(dat_s *dat) {
+void UpdateNet(dat_s *dat, Simulation *sim) {
     union {
         net::ipsrv_pos_t ipsrv_pos;
     } tx;
 
     union {
+        net::sim_setup_t sim_setup;
         net::clisrv_cart_pos_t clisrv_cart_pos;
     } rx;
  
@@ -217,6 +251,10 @@ void UpdateNet(dat_s *dat) {
                     peer.Receive(rx.clisrv_cart_pos);
                     dat->control.cart_x = rx.clisrv_cart_pos.cart_x;
                     break;
+                
+                case net::PacketType::SIM_SETUP:
+                    peer.Receive(rx.sim_setup);
+                    sim->Restart(rx.sim_setup.initial_impulse);
             }
         }
 
@@ -243,21 +281,21 @@ int main(int argc, char *argv[]) {
     
     cout << "Server IP: " << ADDRESS_SERVER << '\n';
 
-    thread net(UpdateNet, &dat);
-
     Simulation sim;
+    sim.Start();
     sim.InitTime();
 
-    while (true) {
+    thread net(UpdateNet, &dat, &sim);
 
+    while (true) {
         if (sim.Step()) {
+            lock_guard lock(dat.rw_mtx);
+
             dat.ground_truth.pend_theta = sim.phys.revoluteJoint->GetJointAngle();
             dat.ground_truth.pend_d_theta = dat.ground_truth.pend_theta - sim.phys.prev_theta;
             sim.phys.prev_theta = dat.ground_truth.pend_theta;
             dat.ground_truth.cart_x = sim.phys.cart->GetPosition().x;
-            // cout << sim.phys.cart->GetPosition().x << '\n';
-            // cout << sim.phys.cart->GetLinearVelocity().x << ' ' << sim.phys.cart->GetLinearVelocity().y << '\n';
-            // cout << sim.phys.cart->GetPosition().x << ' ' << sim.phys.cart->GetPosition().y << '\n';
+
             this_thread::sleep_for(chrono::milliseconds(5));
         }
     }
