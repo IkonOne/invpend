@@ -28,11 +28,12 @@ using namespace iplib;
 constexpr int PORT_SERVER = 30000;
 // constexpr int PORT_CLIENT = 30001;
 constexpr int PORT_SIM = 30002;
-const net::Address ADDRESS_SERVER(127,0,0,1, PORT_SERVER);
+net::Address ADDRESS_SERVER(127,0,0,1, PORT_SERVER);
 
 struct dat_s {
     struct {
-        atomic<float> cart_x = 0;
+        atomic<float> cart_x = 0; 
+        atomic<float> pend_d_theta = 0;
         atomic<float> pend_theta = 0;
     } ground_truth;
 
@@ -64,6 +65,7 @@ class Simulation {
         b2Body *pend;
         b2RevoluteJoint *revoluteJoint;
         b2PrismaticJoint *prismaticJoint;
+        float prev_theta;
     } phys;
 
     struct {
@@ -74,7 +76,7 @@ class Simulation {
     pid_s cartPid;
 
     Simulation()
-        : cartPid(0.0f, 32.0f, 10.0f, 0.0f)
+        : cartPid(0.0f, 12.0f, 1.0f, 0.0f)
     {
         // FIXME: Magic numbers describing the inverted pendulum...
         phys.world = make_unique<b2World>(b2Vec2(0.0f, G));
@@ -84,7 +86,7 @@ class Simulation {
             b2BodyDef bd;
             bd.type = b2BodyType::b2_dynamicBody;
             bd.position.Set(0, 20.0f);
-            bd.linearDamping = 20.0f;
+            bd.linearDamping = 30.0f;
             phys.cart = phys.world->CreateBody(&bd);
 
             b2PolygonShape shape;
@@ -126,8 +128,8 @@ class Simulation {
             pjd.enableLimit = true;
             pjd.lowerTranslation = -15.0f;
             pjd.upperTranslation = 15.0f;
-            pjd.enableMotor = true;
-            pjd.maxMotorForce = 2000.0f;
+            pjd.enableMotor = false;
+            // pjd.maxMotorForce = 2000.0f;
             pjd.collideConnected = false;
 
             phys.prismaticJoint = (b2PrismaticJoint*)phys.world->CreateJoint(&pjd);
@@ -144,6 +146,7 @@ class Simulation {
             rjd.enableMotor = false;
 
             phys.revoluteJoint = dynamic_cast<b2RevoluteJoint*>(phys.world->CreateJoint(&rjd));
+            phys.prev_theta = phys.revoluteJoint->GetJointAngle();
         }
 
         // friction joint - the bearings I am using are trash salvaged from fidget spinners
@@ -182,7 +185,7 @@ class Simulation {
             if (cartPid.setpoint > 15.0f) cartPid.setpoint = 15.0f;
             auto pos = phys.cart->GetPosition();
             float val = pid(cartPid, pos.x, timeStep.count());
-            phys.prismaticJoint->SetMotorSpeed(val);
+            phys.cart->ApplyLinearImpulseToCenter(b2Vec2(val, 0), true);
 
             phys.world->Step(timeStep.count(), 5, 5);
             return true;
@@ -219,6 +222,7 @@ void UpdateNet(dat_s *dat) {
 
         peer.GetConnection().SetTransmitAddress(ADDRESS_SERVER);
         tx.ipsrv_pos.pend_theta = dat->ground_truth.pend_theta;
+        tx.ipsrv_pos.pend_d_theta = dat->ground_truth.pend_d_theta;
         tx.ipsrv_pos.cart_x = dat->ground_truth.cart_x;
         peer.Transmit(&tx.ipsrv_pos);
 
@@ -226,7 +230,19 @@ void UpdateNet(dat_s *dat) {
     }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    string prog_name = argv[0];
+
+    if (argc > 2) {
+        cout << "Usage: " << prog_name << " <server ip>\n";
+        throw new runtime_error("invalid number of arguments - "s + to_string(argc));
+    }
+
+    if (argc == 2)
+        ADDRESS_SERVER = net::Address::fromString(argv[1]);
+    
+    cout << "Server IP: " << ADDRESS_SERVER << '\n';
+
     thread net(UpdateNet, &dat);
 
     Simulation sim;
@@ -236,6 +252,8 @@ int main() {
 
         if (sim.Step()) {
             dat.ground_truth.pend_theta = sim.phys.revoluteJoint->GetJointAngle();
+            dat.ground_truth.pend_d_theta = dat.ground_truth.pend_theta - sim.phys.prev_theta;
+            sim.phys.prev_theta = dat.ground_truth.pend_theta;
             dat.ground_truth.cart_x = sim.phys.cart->GetPosition().x;
             // cout << sim.phys.cart->GetPosition().x << '\n';
             // cout << sim.phys.cart->GetLinearVelocity().x << ' ' << sim.phys.cart->GetLinearVelocity().y << '\n';

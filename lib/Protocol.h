@@ -133,21 +133,25 @@ typedef struct IPSRV_POS {
 
     packet_header_t header;
     float pend_theta;
+    float pend_d_theta;
     float cart_x;
 
     void ReadFrom(PacketBuilder &pb) {
         pb.Read(&pend_theta);
+        pb.Read(&pend_d_theta);
         pb.Read(&cart_x);
     }
 
     void WriteTo(PacketBuilder &pb) const {
         pb.Write(&pend_theta);
+        pb.Write(&pend_d_theta);
         pb.Write(&cart_x);
     }
 
     static constexpr size_t GetSize() {
         return
             sizeof(pend_theta) +
+            sizeof(pend_d_theta) +
             sizeof(cart_x);
     }
 } ipsrv_pos_t ;

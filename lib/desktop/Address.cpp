@@ -21,6 +21,22 @@ unsigned char Address::GetC() const { return (_address & 0x0000FF00) >> 8; }
 unsigned char Address::GetD() const { return (_address & 0x000000FF) >> 0; }
 unsigned short Address::GetPort() const { return _port; }
 
+Address Address::fromString(string addr) {
+	unsigned int arr[4] = {0};
+	size_t pos = 0;
+	string token;
+
+	for (int i = 0; i < 4; ++i) {
+		if (i < 3) pos = addr.find(".");
+		else pos = addr.find(":");
+		token = addr.substr(0, pos);
+		arr[i] = atoi(token.c_str());
+		addr.erase(0, pos + 1);
+	}
+
+	return Address(arr[0], arr[1], arr[2], arr[3], atoi(addr.c_str()));
+}
+
 ostream &operator<<(ostream &out, const Address &rhs) {
 	out << static_cast<int>(rhs.GetA()) << ".";
 	out << static_cast<int>(rhs.GetB()) << ".";
@@ -28,6 +44,14 @@ ostream &operator<<(ostream &out, const Address &rhs) {
 	out << static_cast<int>(rhs.GetD()) << ":";
 	out << rhs.GetPort();
 	return out;
+}
+
+istream &operator>>(istream &in, Address &lhs) {
+	string addr;
+	in >> addr;
+	lhs.fromString(addr);
+
+	return in;
 }
 
 } // net

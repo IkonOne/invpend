@@ -38,12 +38,15 @@ class Address {
 	unsigned char GetD() const;
 	unsigned short GetPort() const;
 
+	static Address fromString(std::string);
+
   private:
 	unsigned int _address;
 	unsigned short _port;
 };
 
 std::ostream &operator<<(std::ostream &out, const Address &rhs);
+std::istream &operator>>(std::istream &in, Address&rhs);
 
 } // net
 } // iplib
