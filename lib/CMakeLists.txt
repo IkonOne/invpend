@@ -1,14 +1,29 @@
 cmake_minimum_required(VERSION 3.13)
 project(iplib)
 
-file(GLOB INVPEND_DESKTOP_HEADER_FILES ${InvPend_SOURCE_DIR}/lib/*.h ${InvPend_SOURCE_DIR}/lib/desktop/*.h)
-file(GLOB INVPEND_DESKTOP_SOURCE_FILES ${InvPend_SOURCE_DIR}/lib/*.cpp ${InvPend_SOURCE_DIR}/lib/desktop/*.cpp)
-file(GLOB INVPEND_ARDUINO_HEADER_FILES ${InvPend_SOURCE_DIR}/lib/*.h ${InvPend_SOURCE_DIR}/lib/arduino/*.h)
-file(GLOB INVPEND_ARDUINO_SOURCE_FILES ${InvPend_SOURCE_DIR}/lib/*.cpp ${InvPend_SOURCE_DIR}/lib/arduino/*.cpp)
-
 SETCOMPILEROPTIONS()
 
+set(IPLIB_LIBRARIES box2d)
+file(GLOB DESKTOP_HEADERS_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/desktop/*.h)
+file(GLOB DESKTOP_SOURCES_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/desktop/*.cpp)
+
+
+if (INVPEND_ENABLE_OPENGL)
+    list(APPEND IPLIB_LIBRARIES imgui)
+    file(GLOB DESKTOP_HEADERS_GLOB ${DESKTOP_HEADERS_GLOB} ${CMAKE_CURRENT_SOURCE_DIR}/desktop/gl/*.h)
+    file(GLOB DESKTOP_SOURCES_GLOB ${DESKTOP_SOURCES_GLOB} ${CMAKE_CURRENT_SOURCE_DIR}/desktop/gl/*.cpp)
+endif()
+
+if (UNIX)
+    list(APPEND IPLIB_LIBRARIES pthread)
+endif()
+
+file(GLOB INVPEND_DESKTOP_HEADER_FILES ${DESKTOP_HEADERS_GLOB})
+file(GLOB INVPEND_DESKTOP_SOURCE_FILES ${DESKTOP_SOURCES_GLOB})
+# file(GLOB INVPEND_ARDUINO_HEADER_FILES ${CMAKE_SOURCE_DIR}/*.h ${CMAKE_SOURCE_DIR}/arduino/*.h)
+# file(GLOB INVPEND_ARDUINO_SOURCE_FILES ${CMAKE_SOURCE_DIR}/*.cpp ${CMAKE_SOURCE_DIR}/arduino/*.cpp)
+
 add_library(iplib STATIC ${INVPEND_DESKTOP_SOURCE_FILES})
-target_link_libraries(iplib imgui box2d)
+target_link_libraries(iplib ${IPLIB_LIBRARIES})
 
 target_include_directories(iplib PUBLIC ${InvPend_SOURCE_DIR}/lib ${InvPend_SOURCE_DIR}/lib/desktop)

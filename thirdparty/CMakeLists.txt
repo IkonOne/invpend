@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 
-#set(BUILD_TESTS OFF CACHE BOOL "CppLinuxSerial unit tests")
-#add_subdirectory(CppLinuxSerial)
-
 add_subdirectory(box2d)
-add_subdirectory(glad)
-add_subdirectory(glfw)
-add_subdirectory(imgui)
+
+if (INVPEND_ENABLE_OPENGL)
+    add_subdirectory(glad)
+    add_subdirectory(glfw)
+    add_subdirectory(imgui)
+endif()

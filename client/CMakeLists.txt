@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 
-MESSAGE_CONFIGURING()
-GETCURRENTFOLDER()
-STDPROJECT(${current_folder})
+if (INVPEND_ENABLE_OPENGL)
+    MESSAGE_CONFIGURING()
+    GETCURRENTFOLDER()
+    STDPROJECT(${current_folder})
 
-add_subdirectory(client_sim)
+    add_subdirectory(client_sim)
+endif()
