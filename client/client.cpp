@@ -139,7 +139,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (argc == 2)
-        ADDRESS_SERVER.fromString(argv[1]);
+        ADDRESS_SERVER = net::Address::fromString(argv[1]);
+    
+    cout << argv[1] << endl;
     
     cout << "Server IP: " << ADDRESS_SERVER << '\n';
 
