@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <iplib/globals.h>
 #include <iplib/GuiWindow.h>
 #include <iplib/PacketBuilder.h>
 #include <iplib/Protocol.h>
@@ -82,7 +83,7 @@ void draw() {
 
         ImGui::Text("theta: ");
         ImGui::SameLine();
-        ImGui::Text(to_string(_pend_thetas.back()).c_str());
+        ImGui::Text("%f", _pend_thetas.back());
 
         ImGui::PlotLines("theta", _pend_thetas.begin(), _pend_thetas.size());
         
@@ -91,6 +92,9 @@ void draw() {
 }
 
 int main(int argv, char *argc[]) {
+    IPLIB_IGNORE_UNUSED(argv);
+    IPLIB_IGNORE_UNUSED(argc);
+
     // _peer.GetConnection().SetDevice(argc[1]);
     // _peer.GetConnection().Open(net::Baud::_115200);
 

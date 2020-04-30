@@ -1,7 +1,7 @@
 #include <iostream>
 #include <exception>
-#include "iplib/Address.h"
-#include "iplib/SocketUDP.h"
+#include <iplib/desktop/Address.h>
+#include <iplib/desktop/SocketUDP.h>
 
 using namespace std;
 using namespace iplib;

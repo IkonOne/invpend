@@ -1,6 +1,8 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+#define IPLIB_IGNORE_UNUSED(unused) ((void)unused)
+
 #ifndef BYTE_T
 #define BYTE_T
 #include <stdint.h>

@@ -1,9 +1,10 @@
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include <iplib/globals.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 using namespace std;
 
@@ -11,12 +12,17 @@ constexpr int WIDTH = 800;
 constexpr int HEIGHT = 600;
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mode) {
+    IPLIB_IGNORE_UNUSED(scancode);
+    IPLIB_IGNORE_UNUSED(mode);
+
     // cout << key << '\n';
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
 void error_callback(int code, const char *description) {
+    IPLIB_IGNORE_UNUSED(code);
+
     cerr << "GLFW ERROR: " << description << '\n';
 }
 
@@ -58,7 +64,9 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
-    // (void)io;
+
+    IPLIB_IGNORE_UNUSED(io);
+
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);

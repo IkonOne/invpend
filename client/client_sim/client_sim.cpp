@@ -4,6 +4,7 @@
 #include <ratio>
 
 #include <imgui.h>
+#include <iplib/desktop/gl/draw.h>
 #include <iplib/GuiWindow.h>
 #include <iplib/MathHelpers.h>
 #include <glad/glad.h>
@@ -15,8 +16,6 @@
 #include <box2d/b2_math.h>
 #include <box2d/b2_polygon_shape.h>
 #include <box2d/b2_world.h>
-
-#include "draw.h"
 
 using namespace std;
 using namespace iplib;
